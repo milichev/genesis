@@ -1,12 +1,15 @@
 ---
 name: wiki-stats stabilize
-overview: "Stabilize wiki-stats for real use: document how to publish/install via the skills CLI (no skills.sh upload), harden Wikimedia HTTP with a shared pacer + soft failures, add `--log`, and expose `articles[*].url` in the summary schema."
+overview: "Stabilize wiki-stats: restore-confirmed codebase, harden Wikimedia HTTP (pacer + soft failures), add estimate/eta UX for agents, --log, articles[*].url, and publish/install docs + local e2e."
 todos:
   - id: http-pacer
     content: Global pacer + Retry-After + soft HttpError in http.js; partial continue in resolve/fetch
     status: pending
   - id: cli-json-errors
     content: CLI always emits JSON on failure; never uncaught 429 stack
+    status: pending
+  - id: estimate-eta
+    content: CLI `estimate` returns estimation + optional alert enum; SKILL only relays alert; run may echo same fields
     status: pending
   - id: log-flag
     content: Add --log=<file> request/pacer logging
@@ -21,6 +24,15 @@ isProject: false
 ---
 
 # wiki-stats stabilization phase
+
+## Locked decisions (grill)
+
+- **Working tree:** restored from git; aux docs already committed. Stabilize builds on that code (no rewrite).
+- **Long-run UX:** reject background+poll (C). Ship **`wiki-stats estimate`** (no network). CLI returns `{ estimation, alert? }` — **CLI decides severity**; agent never thresholds numbers. SKILL: if `alert` is present, warn the user using the mapped phrase for that enum, then call `run`. Tool wait/block_until ≥ `estimation` + documented margin. Optionally `run` echoes the same `estimation`/`alert` (B-lite).
+- **Partial failure (locked):** after retries, one lang’s resolve/fetch error → mark that article (`fetch_error` / resolve error), **continue** other langs. If ≥1 series exists → `status: "ok"` (or a clear `partial` if already used) + caveats listing failures; deliver charts/brief on what succeeded. Total abort only when **nothing** usable remains. `missing_langlink` stays a data gap, not an error.
+- **`alert` buckets (locked):** omit when `estimation` &lt; 10; `Brief` 10–29; `Moderate` 30–89; `Extended` 90–299; `Infinite` ≥ 300 (or absurd `requests_est`, e.g. ≥ 50 langs). Phrase bank in SKILL: Brief → трошки почекати; Moderate → доведеться чекати; Extended → довго чекати; Infinite → безкінечність, скоріш за все, не дочекаємось (+ ask before `run`).
+
+---
 
 ## 1. Publishing / e2e install (answer + deliverable)
 
@@ -64,8 +76,6 @@ flowchart TD
   soft --> continue[Caller continues / partial summary]
 ```
 
-
-
 **Implement in `http.js` (shared):**
 
 - **Compliant UA** via `WIKI_STATS_UA` (document required shape: `wiki-stats/0.1 (https://…; email@…)`). Keep a non-placeholder default that still identifies the skill.
@@ -76,14 +86,66 @@ flowchart TD
 **Soft-fail the CLI (critical):**
 
 - Wrap `main` / `cmdRun` in try/catch: always print **one JSON object** to stdout on failure (`{ "status": "error", "error": "…", "http_status": 429 }`), diagnostics to stderr; exit 1 — **never** an uncaught stack as the primary UX.
-- In `resolve` / `fetch`: if a single MediaWiki/AQS call soft-fails after retries, mark that article (`status: "fetch_error"` / resolve error field) and **continue** other langs when possible. Prefer partial `status: "ok"` with caveats over total abort when at least one series exists.
+- In `resolve` / `fetch`: if a single MediaWiki/AQS call soft-fails after retries, mark that article (`status: "fetch_error"` / resolve error field) and **continue** other langs when possible. Prefer partial delivery with caveats over total abort when at least one series exists (**locked**).
 - Update `[references/aqs.md](genesis/ai-school/test-case/wiki-stats/references/aqs.md)` with pacer + Retry-After + UA policy.
 
 **Note:** typo `ua` in `--langs` (Ukrainian is `uk`) is user error; optional one-line gotcha in SKILL.md only.
 
 ---
 
-## 3. `--log=<file>` request log
+## 3. `estimate` + CLI-owned `alert` (new)
+
+**Yes — agent must not decide.** Severity lives in the CLI; SKILL only relays.
+
+**CLI (no network):**
+
+```bash
+wiki-stats estimate --langs pl,cs,uk --months 24
+```
+
+Stdout JSON shape (locked):
+
+```json
+{
+  "status": "ok",
+  "estimation": 12,
+  "alert": "Moderate",
+  "requests_est": 6,
+  "assumptions": { "pace_ms": 350, "resolve_requests": 3, "fetch_per_lang": 1 }
+}
+```
+
+- `estimation`: wall-time seconds (number), cold-path from paced request count.
+- `alert`: optional enum string — omit when no user-facing wait notice is needed (see buckets below). Values:
+
+| `alert`    | User-facing sense (SKILL phrase bank)        |
+| ---------- | -------------------------------------------- |
+| `Brief`    | трошки почекати                              |
+| `Moderate` | доведеться чекати                            |
+| `Extended` | довго чекати                                 |
+| `Infinite` | безкінечність, скоріш за все, не дочекаємось |
+
+**Buckets (locked):**
+
+- omit `alert` when `estimation` &lt; 10
+- `Brief`: 10–29
+- `Moderate`: 30–89
+- `Extended`: 90–299
+- `Infinite`: ≥ 300 (or absurd request_est, e.g. ≥ 50 langs)
+
+**Formula:** `requests_est ≈ resolve_fixed + lang_count`; `estimation = ceil(requests_est * pace_ms / 1000)`. Ignore cache hits and 429 in the number; note in assumptions that 429 can extend wall time. `months`/granularity do not change request count for monthly per-article (one GET per lang) — still accepted as flags for API symmetry with `run`.
+
+**SKILL.md agent workflow:**
+
+1. Run `estimate` with the same `--langs` / window flags as the planned `run`.
+2. **If `alert` is present:** tell the user once using the SKILL phrase for that enum (optionally include `estimation` seconds). Do not invent other severity logic.
+3. Call `run` with tool wait ≥ `estimation + margin` (document margin once, e.g. `max(30, estimation)` extra or 2×). No busy-`sleep` loop.
+4. On `Infinite`: still allow `run` if the user confirms, or ask before running — SKILL one-liner: ask before proceeding when `alert === "Infinite"`.
+5. `run` may echo `estimation` / `alert` in the summary (B-lite).
+
+---
+
+## 4. `--log=<file>` request log
 
 Global flag parsed in `[cli.js](genesis/ai-school/test-case/wiki-stats/scripts/cli.js)`, passed into `http` via module setter or `AsyncLocalStorage` / `setLogSink(path)`.
 
@@ -94,7 +156,7 @@ Log: method, full URL, status (or `error`), duration, pacer wait, cache hit if f
 
 ---
 
-## 4. Schema: `articles[*].url`
+## 5. Schema: `articles[*].url`
 
 In `[resolve.js](genesis/ai-school/test-case/wiki-stats/scripts/resolve.js)` when building articles, and in `[analyze.js` `buildSummary](genesis/ai-school/test-case/wiki-stats/scripts/analyze.js)`:
 
@@ -105,12 +167,12 @@ Update SKILL.md summary schema line + `evals/evals.json` field list.
 
 ---
 
-## Implementation order (~1–1.5h)
+## Implementation order (~1.5–2h)
 
 1. `http.js` pacer + Retry-After + better retries; soft `HttpError`.
 2. CLI catch-all JSON errors; fetch/resolve partial failure.
-3. `--log` wiring.
-4. `articles[].url`.
-5. Docs: `references/publish.md`, aqs/SKILL/evals touch-ups.
-6. Verify: two back-to-back `run`s (Smetana / IF) without crash; with `--log=./output/http.log` inspect lines; `npx skills add <path> -g -a cursor -y` smoke.
-
+3. `estimate` subcommand (`estimation` + optional `alert` enum) + SKILL phrase bank / wait-margin / Infinite confirm.
+4. `--log` wiring.
+5. `articles[].url`.
+6. Docs: `references/publish.md`, aqs/SKILL/evals touch-ups.
+7. Verify: `estimate` then two back-to-back `run`s without crash; `--log=./output/http.log`; `npx skills add <path> -g -a cursor -y` smoke.
