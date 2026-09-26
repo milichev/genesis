@@ -19,6 +19,8 @@ CLI does fetch, math, charts, and briefs. You parse the user question, run the C
 - **Always surface** Assumptions & limitations from summary `caveats[]` and the brief footer.
 - **API / encoding / rate-limit errors** → read [references/aqs.md](references/aqs.md). Metric definitions → [references/metrics.md](references/metrics.md). **Install / publish** → [references/publish.md](references/publish.md).
 
+
+
 ## Workflow checklist
 
 1. **Parse** topic(s), target languages (ISO codes: `pl`, `cs`, `uk`, …), and date window. Default window: last **24 months** ending today unless the user specifies otherwise. Ukrainian Wikipedia is `uk`, not `ua`.
@@ -31,6 +33,7 @@ CLI does fetch, math, charts, and briefs. You parse the user question, run the C
 
 Stdout JSON includes `estimation` (seconds, cold path) and optional `alert` (`Brief` | `Moderate` | `Extended` | `Infinite`). **If** `alert` **is present**, tell the user once using this phrase bank (you may include `estimation` seconds):
 
+
 | `alert`    | Phrase (UA)                                                         |
 | ---------- | ------------------------------------------------------------------- |
 | `Brief`    | трошки почекати                                                     |
@@ -38,7 +41,10 @@ Stdout JSON includes `estimation` (seconds, cold path) and optional `alert` (`Br
 | `Extended` | довго чекати                                                        |
 | `Infinite` | безкінечність, скоріш за все, не дочекаємось — **ask before** `run` |
 
-Then call `run` with tool wait **≥** `estimation + margin`, where **margin = max(30, estimation)** seconds (alternatively 2× `estimation`). Do not busy-loop `sleep` in chat. 4. **Run the happy path** (preferred):
+
+Call `run` with tool wait **≥** `estimation + margin`, where **margin = max(30, estimation)** seconds (alternatively 2× `estimation`). Do not busy-loop `sleep` in chat.
+
+1. **Run the happy path** (preferred):
 
 ```bash
  npx wiki-stats run \
@@ -47,12 +53,13 @@ Then call `run` with tool wait **≥** `estimation + margin`, where **margin = m
    --months 24
 ```
 
-Equivalent: `node scripts/cli.js run ...` (from this skill root, after `npm install`).
+*Equivalent*: `node scripts/cli.js run ...` (from this skill root, after `npm install`).
 **Flags (match CLI):**
+
 
 | Flag                | Role                                                                                       |
 | ------------------- | ------------------------------------------------------------------------------------------ |
-| `--topic`           | Search phrase (required unless you pass `--title` only via resolve path)                   |
+| `--topic`           | Search phrase (required unless you pass `--title` only via `resolve` path)                 |
 | `--langs`           | Comma-separated ISO codes (default `en`)                                                   |
 | `--months`          | Rolling window length when `--start`/`--end` omitted (default **24**, monthly granularity) |
 | `--pivot`           | Wiki language for search when topic is ambiguous (default **en**)                          |
@@ -61,15 +68,19 @@ Equivalent: `node scripts/cli.js run ...` (from this skill root, after `npm inst
 | `--out`             | Output directory (default `output/<slug>-<timestamp>` under skill root)                    |
 | `--log=<file>`      | Append paced HTTP log (see `--help`)                                                       |
 
-5. **Ambiguous resolve:** stdout JSON with `"status":"needs_confirmation"` and **exit code 3**. Show 2–3 `candidates`, ask once, re-run with `--title "lang:Article_title"` (underscores as in Wikipedia URLs). Do not retry resolve in a loop.
-6. **HTTP / rate limits:** the CLI paces requests and retries 429/503 with `Retry-After`; on failure stdout is still **one JSON object** (`status: "error"`), not a stack trace. Partial runs may return `status: "partial"` when some langs fail. See [references/aqs.md](references/aqs.md).
-7. Read **stdout JSON** (single line, no raw series): `status`, `topic`, `articles` (each with `url` when linked), optional `estimation` / `alert`, `window`, `kpis`, `per_lang[]`, `spikes[]`, `caveats[]`, `paths` (`brief`, `relations_mmd`, `chart_lang_share`, `chart_trend`, `out_dir`).
-8. Open `paths.brief` (or the path printed). Use KPI strip, embedded Mermaid, chart images, and takeaways when composing the user-facing answer.
-9. **Reply structure**: short executive answer → paste or summarize CLI Mermaid if helpful → three bullets aligned with brief takeaways → caveats. Point to on-disk `brief.md` and charts for sharing.
+
+1. **Ambiguous resolve:** stdout JSON with `"status":"needs_confirmation"` and **exit code 3**. Show 2–3 `candidates`, ask once, re-run with `--title "lang:Article_title"` (underscores as in Wikipedia URLs). Do not retry resolve in a loop.
+2. **HTTP / rate limits:** the CLI paces requests and retries 429/503 with `Retry-After`; on failure stdout is still **one JSON object** (`status: "error"`), not a stack trace. Partial runs may return `status: "partial"` when some langs fail. See [references/aqs.md](references/aqs.md).
+3. Read **stdout JSON** (single line, no raw series): `status`, `topic`, `articles` (each with `url` when linked), optional `estimation` / `alert`, `window`, `kpis`, `per_lang[]`, `spikes[]`, `caveats[]`, `paths` (`brief`, `relations_mmd`, `chart_lang_share`, `chart_trend`, `out_dir`).
+4. Open `paths.brief` (or the path printed). Use KPI strip, embedded Mermaid, chart images, and takeaways when composing the user-facing answer.
+5. **Reply structure**: short executive answer → paste or summarize CLI Mermaid if helpful → three bullets aligned with brief takeaways → caveats. Point to on-disk `brief.md` and charts for sharing.
+
+
 
 ## Step commands (debug / cache reuse)
 
 Use when adjusting one stage without repeating network calls (`.cache/` is keyed by project, title, range):
+
 
 | Command    | Purpose                                                                                     |
 | ---------- | ------------------------------------------------------------------------------------------- |
@@ -80,6 +91,7 @@ Use when adjusting one stage without repeating network calls (`.cache/` is keyed
 | `chart`    | SVG: lang-share bar + trend line                                                            |
 | `brief`    | Fill [assets/brief-template.md](assets/brief-template.md), write Mermaid to `relations.mmd` |
 | `run`      | resolve → fetch → analyze → chart → brief; **prints only the small summary**                |
+
 
 All subcommands support `--help` (see `scripts/cli.js` usage for full flag list). Diagnostics go to stderr; **stdout stays JSON** for machine-readable summaries. `run` **/** `resolve` **exit 3** when confirmation is required.
 
@@ -92,11 +104,15 @@ All subcommands support `--help` (see `scripts/cli.js` usage for full flag list)
 - `caveats[]`: pageviews ≠ monetization; low-volume warnings; missing langlinks.
 - Do not extrapolate causality, revenue, or “users will pay” from views alone.
 
+
+
 ## Gotchas
 
 - **Missing langlinks are not zero interest.** Try `--title` or manual wiki search once; if still unresolved, treat as **topic not yet localized** on that wiki—a **data gap**, not proof of no demand. Do not invent views/share/growth for that lang. Example: `en:Intermittent_fasting` often has **no pl langlink**—`--langs pl,cs` may analyze **cs only** until `pl:…` is verified. Mermaid shows dashed `missing langlink` nodes; caveats list skipped langs.
 - `--pivot` **vs** `--langs`**:** Search runs on pivot wiki (default `en`); `--langs` only selects which editions to map via langlinks (plus pivot if listed).
 - **Rate limits:** use `estimate` before long runs; CLI global pacer + retries; cached AQS under `.cache/` speeds re-runs. See [references/aqs.md](references/aqs.md).
+
+
 
 ## Follow-up queries
 

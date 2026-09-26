@@ -1,4 +1,4 @@
-# Wikimedia Analytics (AQS) & MediaWiki gotchas
+# Wikimedia Analytics Query Service (AQS) & MediaWiki gotchas
 
 Use this when `fetch` / `run` fails, returns empty series, or resolve behaves oddly.
 
