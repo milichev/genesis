@@ -1,0 +1,16 @@
+{
+  "name": "wiki-stats",
+  "version": "0.1.0",
+  "description": "Wikipedia pageview analysis CLI for Agent Skills",
+  "type": "module",
+  "bin": {
+    "wiki-stats": "./scripts/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node scripts/cli.js --help"
+  },
+  "license": "MIT"
+}

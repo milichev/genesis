@@ -1,0 +1,142 @@
+{
+  "skill": "wiki-stats",
+  "version": "0.1.0",
+  "notes": "Prompts from pes_task_1.md case study. Run from skill root after npm install. Assertions assume wiki-stats run prints a concise summary and writes artifacts under paths.",
+  "evals": [
+    {
+      "id": "fasting-pl-cs-yoy",
+      "source": "pes_task_1 example 1",
+      "prompt": "Порівняй зростання інтересу до інтервального голодування в польськомовній та чеськомовній Wikipedia за останні два роки.",
+      "prompt_en": "Compare interest growth for intermittent fasting on Polish and Czech Wikipedia over the last two years.",
+      "suggested_cli": "npx wiki-stats run --topic \"intermittent fasting\" --langs pl,cs --start <24mo_start> --end <today>",
+      "expected_output": "Agent compares pl vs cs using summary per_lang growth_slope and share_pct; references brief.md KPI strip and trend chart; includes CLI Mermaid (resolution + audience priority); states pageviews are not purchase intent.",
+      "assertions": [
+        {
+          "type": "cli_invoked",
+          "command_pattern": "wiki-stats run|scripts/cli.js run"
+        },
+        {
+          "type": "summary_json",
+          "max_bytes": 8192,
+          "forbidden_keys": ["daily_series", "monthly_series", "timeseries", "raw_pageviews"]
+        },
+        {
+          "type": "summary_fields_present",
+          "fields": ["articles", "kpis", "per_lang", "caveats", "paths"]
+        },
+        {
+          "type": "artifact_exists",
+          "path_from": "paths.brief",
+          "fallback_glob": "**/brief.md"
+        },
+        {
+          "type": "artifact_exists",
+          "path_from": "paths.relations_mmd",
+          "fallback_glob": "**/relations.mmd"
+        },
+        {
+          "type": "brief_contains",
+          "patterns": ["```mermaid", "Language expansion priority", "Market momentum", "Action item", "Assumptions & limitations"]
+        },
+        {
+          "type": "charts_exist",
+          "count": 2,
+          "extensions": [".svg"]
+        },
+        {
+          "type": "response_caveats",
+          "must_mention_any": ["pageview", "перегляд", "willingness to pay", "monetiz", "не означає готовність платити"]
+        },
+        {
+          "type": "response_no_hallucination",
+          "rule": "Numeric views/shares/slopes in agent text must match summary JSON within rounding"
+        }
+      ]
+    },
+    {
+      "id": "astronomy-uk-trust",
+      "source": "pes_task_1 example 2",
+      "prompt": "Ми думаємо додати курс з астрономії до освітнього застосунку. Чи зростає інтерес до цієї теми в україномовній Wikipedia, і наскільки цьому зростанню можна довіряти?",
+      "prompt_en": "We plan an astronomy course for an educational app. Is interest in astronomy growing on Ukrainian Wikipedia, and how trustworthy is that growth?",
+      "suggested_cli": "npx wiki-stats run --topic \"astronomy\" --langs uk --start <24mo_start> --end <today>",
+      "expected_output": "Agent answers growth yes/no from growth_slope; explicitly addresses trust via absolute views, window length, spikes[] and caveats[]; does not promise enrollment or revenue; may use uk:Астрономія or resolved title from summary.",
+      "assertions": [
+        {
+          "type": "cli_invoked",
+          "command_pattern": "wiki-stats run|scripts/cli.js run"
+        },
+        {
+          "type": "summary_json",
+          "max_bytes": 8192
+        },
+        {
+          "type": "per_lang_includes",
+          "langs": ["uk"]
+        },
+        {
+          "type": "trust_discussion",
+          "must_reference_any": ["caveats", "spike", "low volume", "absolute", "довір", "trust", "season"]
+        },
+        {
+          "type": "artifact_exists",
+          "path_from": "paths.brief"
+        },
+        {
+          "type": "brief_contains",
+          "patterns": ["Assumptions & limitations", "pageviews"]
+        },
+        {
+          "type": "response_no_hallucination",
+          "rule": "No invented statistics if CLI failed; report error and point to references/aqs.md"
+        }
+      ]
+    },
+    {
+      "id": "english-learning-multi-lang-report",
+      "source": "pes_task_1 example 3",
+      "prompt": "Ми створюємо застосунок для вивчення мов. Порівняй інтерес до вивчення англійської у вибраних нами мовних розділах та підготуй короткий звіт: які аудиторії варто дослідити наступними й чому?",
+      "prompt_en": "We are building a language-learning app. Compare interest in learning English across our chosen Wikipedia language editions and prepare a short report on which audiences to explore next and why.",
+      "suggested_cli": "npx wiki-stats run --topic \"English language\" --langs pl,de,es,fr,uk --start <24mo_start> --end <today>",
+      "user_followup_note": "If user did not list langs, agent asks once for target editions or uses a reasonable default set and states the assumption.",
+      "expected_output": "Shareable brief.md with KPI strip, Mermaid audience priority, two SVG charts; agent ranks locales using share_pct and growth_slope; three takeaways map to Language expansion / Market momentum / Action item.",
+      "assertions": [
+        {
+          "type": "cli_invoked",
+          "command_pattern": "wiki-stats run|scripts/cli.js run"
+        },
+        {
+          "type": "summary_json",
+          "max_bytes": 12288,
+          "per_lang_min_count": 2
+        },
+        {
+          "type": "artifact_exists",
+          "path_from": "paths.brief"
+        },
+        {
+          "type": "brief_contains",
+          "patterns": ["```mermaid", "Language demand share", "Takeaways", "Language expansion priority"]
+        },
+        {
+          "type": "charts_exist",
+          "count": 2,
+          "extensions": [".svg"]
+        },
+        {
+          "type": "mermaid_in_artifact",
+          "source": "brief.md or relations.mmd",
+          "must_include": ["flowchart", "graph"]
+        },
+        {
+          "type": "response_structure",
+          "must_include": ["audience", "auditor", "audiences", "аудитор", "мов", "language"],
+          "ranking_grounded_in": ["share_pct", "growth_slope"]
+        },
+        {
+          "type": "response_caveats",
+          "must_mention_any": ["limitation", "обмежен", "pageview", "перегляд"]
+        }
+      ]
+    }
+  ]
+}
