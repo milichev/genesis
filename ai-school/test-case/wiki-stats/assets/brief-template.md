@@ -4,9 +4,9 @@
 
 ## KPI strip
 
-| Combined views | Top language (share) | Strongest growth (slope) | Spike flags |
-| --- | --- | --- | --- |
-| {{KPI_COMBINED}} | {{KPI_TOP_LANG}} ({{KPI_TOP_SHARE}}) | {{KPI_TOP_GROWTH}} | {{KPI_SPIKES}} |
+| Combined views   | Top language (share)                 | Strongest growth (slope) | Spike flags    |
+| ---------------- | ------------------------------------ | ------------------------ | -------------- |
+| {{KPI_COMBINED}} | {{KPI_TOP_LANG}} ({{KPI_TOP_SHARE}}) | {{KPI_TOP_GROWTH}}       | {{KPI_SPIKES}} |
 
 ## Topic & language map
 

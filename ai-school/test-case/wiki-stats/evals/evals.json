@@ -3,9 +3,32 @@
   "version": "0.1.0",
   "notes": "Prompts from pes_task_1.md case study. Run from skill root after npm install. Assertions assume wiki-stats run prints a concise summary (no embedded series) and writes artifacts under paths. Exit code 3 = needs_confirmation.",
   "summary_schema_hint": {
-    "top_level": ["status", "topic", "articles", "window", "kpis", "per_lang", "spikes", "caveats", "paths"],
-    "paths": ["out_dir", "brief", "relations_mmd", "chart_lang_share", "chart_trend"],
-    "per_lang_fields": ["lang", "views", "share_pct", "growth_pct", "growth_label"]
+    "top_level": [
+      "status",
+      "topic",
+      "articles",
+      "window",
+      "kpis",
+      "per_lang",
+      "spikes",
+      "caveats",
+      "paths"
+    ],
+    "articles_fields": ["lang", "title", "status", "url"],
+    "paths": [
+      "out_dir",
+      "brief",
+      "relations_mmd",
+      "chart_lang_share",
+      "chart_trend"
+    ],
+    "per_lang_fields": [
+      "lang",
+      "views",
+      "share_pct",
+      "growth_pct",
+      "growth_label"
+    ]
   },
   "evals": [
     {
@@ -24,15 +47,35 @@
         {
           "type": "summary_json",
           "max_bytes": 8192,
-          "forbidden_keys": ["daily_series", "monthly_series", "timeseries", "raw_pageviews"]
+          "forbidden_keys": [
+            "daily_series",
+            "monthly_series",
+            "timeseries",
+            "raw_pageviews"
+          ]
         },
         {
           "type": "summary_fields_present",
-          "fields": ["status", "topic", "articles", "window", "kpis", "per_lang", "spikes", "caveats", "paths"]
+          "fields": [
+            "status",
+            "topic",
+            "articles",
+            "window",
+            "kpis",
+            "per_lang",
+            "spikes",
+            "caveats",
+            "paths"
+          ]
         },
         {
           "type": "paths_fields_present",
-          "fields": ["brief", "relations_mmd", "chart_lang_share", "chart_trend"]
+          "fields": [
+            "brief",
+            "relations_mmd",
+            "chart_lang_share",
+            "chart_trend"
+          ]
         },
         {
           "type": "artifact_exists",
@@ -46,7 +89,13 @@
         },
         {
           "type": "brief_contains",
-          "patterns": ["```mermaid", "Language expansion priority", "Market momentum", "Action item", "Assumptions & limitations"]
+          "patterns": [
+            "```mermaid",
+            "Language expansion priority",
+            "Market momentum",
+            "Action item",
+            "Assumptions & limitations"
+          ]
         },
         {
           "type": "charts_exist",
@@ -55,7 +104,13 @@
         },
         {
           "type": "response_caveats",
-          "must_mention_any": ["pageview", "перегляд", "willingness to pay", "monetiz", "не означає готовність платити"]
+          "must_mention_any": [
+            "pageview",
+            "перегляд",
+            "willingness to pay",
+            "monetiz",
+            "не означає готовність платити"
+          ]
         },
         {
           "type": "response_no_hallucination",
@@ -85,7 +140,15 @@
         },
         {
           "type": "trust_discussion",
-          "must_reference_any": ["caveats", "spike", "low volume", "absolute", "довір", "trust", "season"]
+          "must_reference_any": [
+            "caveats",
+            "spike",
+            "low volume",
+            "absolute",
+            "довір",
+            "trust",
+            "season"
+          ]
         },
         {
           "type": "artifact_exists",
@@ -125,7 +188,12 @@
         },
         {
           "type": "brief_contains",
-          "patterns": ["```mermaid", "Language demand share", "Takeaways", "Language expansion priority"]
+          "patterns": [
+            "```mermaid",
+            "Language demand share",
+            "Takeaways",
+            "Language expansion priority"
+          ]
         },
         {
           "type": "charts_exist",
@@ -139,7 +207,14 @@
         },
         {
           "type": "response_structure",
-          "must_include": ["audience", "auditor", "audiences", "аудитор", "мов", "language"],
+          "must_include": [
+            "audience",
+            "auditor",
+            "audiences",
+            "аудитор",
+            "мов",
+            "language"
+          ],
           "ranking_grounded_in": ["share_pct", "growth_pct"]
         },
         {

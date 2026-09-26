@@ -46,10 +46,10 @@ Always state in user-facing answers:
 
 ## Relation to brief takeaways
 
-| Brief section | Data source |
-| --- | --- |
-| Language expansion priority | `share_pct`, missing langlinks, `growth_pct` |
-| Market momentum | `growth_pct` / `growth_label`, trend chart, `spikes[]` |
-| Action item | Your synthesis: next locale to test or research—grounded in KPIs + caveats |
+| Brief section               | Data source                                                                |
+| --------------------------- | -------------------------------------------------------------------------- |
+| Language expansion priority | `share_pct`, missing langlinks, `growth_pct`                               |
+| Market momentum             | `growth_pct` / `growth_label`, trend chart, `spikes[]`                     |
+| Action item                 | Your synthesis: next locale to test or research—grounded in KPIs + caveats |
 
 When the user asks “can we trust this?” lean on absolute levels, window length, spike flags, and [references/aqs.md](aqs.md) data quality notes.

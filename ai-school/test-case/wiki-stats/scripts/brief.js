@@ -12,7 +12,13 @@ const TEMPLATE_PATH = path.join(SKILL_ROOT, 'assets/brief-template.md');
  * @param {object} chartPaths relative or absolute
  * @param {string} outDir
  */
-export async function writeBrief(resolveResult, fetchBundle, analysis, chartPaths, outDir) {
+export async function writeBrief(
+  resolveResult,
+  fetchBundle,
+  analysis,
+  chartPaths,
+  outDir
+) {
   await fs.mkdir(outDir, { recursive: true });
   const template = await fs.readFile(TEMPLATE_PATH, 'utf8');
 
@@ -25,7 +31,7 @@ export async function writeBrief(resolveResult, fetchBundle, analysis, chartPath
 
   const top = analysis.per_lang[0];
   const topGrowth = [...analysis.per_lang].sort(
-    (a, b) => (b.growth_pct ?? -999) - (a.growth_pct ?? -999),
+    (a, b) => (b.growth_pct ?? -999) - (a.growth_pct ?? -999)
   )[0];
 
   const pivot = resolveResult.pivot;
@@ -39,9 +45,10 @@ export async function writeBrief(resolveResult, fetchBundle, analysis, chartPath
     KPI_COMBINED: fmtNum(analysis.kpis.combined_views),
     KPI_TOP_LANG: top?.lang ?? '—',
     KPI_TOP_SHARE: top ? `${top.share_pct}%` : '—',
-    KPI_TOP_GROWTH: topGrowth?.growth_pct != null
-      ? `${topGrowth.lang} ${topGrowth.growth_pct > 0 ? '+' : ''}${topGrowth.growth_pct}%`
-      : 'n/a',
+    KPI_TOP_GROWTH:
+      topGrowth?.growth_pct != null
+        ? `${topGrowth.lang} ${topGrowth.growth_pct > 0 ? '+' : ''}${topGrowth.growth_pct}%`
+        : 'n/a',
     KPI_SPIKES: String(analysis.spikes.length),
     MERMAID_RESOLUTION: fence(mermaid.resolution),
     MERMAID_AUDIENCE: fence(mermaid.audience),
@@ -97,13 +104,17 @@ export function buildMermaid(resolveResult, analysis) {
     }
   }
 
-  const ranked = [...analysis.per_lang].sort((a, b) => b.share_pct - a.share_pct);
+  const ranked = [...analysis.per_lang].sort(
+    (a, b) => b.share_pct - a.share_pct
+  );
   let audience = 'flowchart TB\n  pivot2["Audience priority"]';
   let prev = 'pivot2';
   ranked.forEach((p, i) => {
     const node = `L${i}`;
     const growth =
-      p.growth_pct != null ? ` | ${p.growth_pct > 0 ? '+' : ''}${p.growth_pct}%` : '';
+      p.growth_pct != null
+        ? ` | ${p.growth_pct > 0 ? '+' : ''}${p.growth_pct}%`
+        : '';
     audience += `\n  ${prev} --> ${node}["${p.lang} ${p.share_pct}%${growth}"]`;
     prev = node;
   });
@@ -120,11 +131,15 @@ function escM(s) {
 }
 
 function sanitizeId(s) {
-  return String(s).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 40);
+  return String(s)
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .slice(0, 40);
 }
 
 function takeawayLang(analysis) {
-  const sorted = [...analysis.per_lang].sort((a, b) => b.share_pct - a.share_pct);
+  const sorted = [...analysis.per_lang].sort(
+    (a, b) => b.share_pct - a.share_pct
+  );
   const leader = sorted[0];
   const runner = sorted[1];
   if (!leader) return 'No language data available.';
@@ -136,7 +151,8 @@ function takeawayLang(analysis) {
 
 function takeawayMomentum(analysis) {
   const withGrowth = analysis.per_lang.filter((p) => p.growth_pct != null);
-  if (!withGrowth.length) return 'Insufficient history for YoY-style momentum comparison.';
+  if (!withGrowth.length)
+    return 'Insufficient history for YoY-style momentum comparison.';
   const best = [...withGrowth].sort((a, b) => b.growth_pct - a.growth_pct)[0];
   const worst = [...withGrowth].sort((a, b) => a.growth_pct - b.growth_pct)[0];
   return `Strongest recent vs baseline momentum: ${best.lang} (${best.growth_pct > 0 ? '+' : ''}${best.growth_pct}%); weakest: ${worst.lang} (${worst.growth_pct > 0 ? '+' : ''}${worst.growth_pct}%). Treat spikes (${analysis.spikes.length} flagged) as event noise until validated.`;
@@ -148,14 +164,16 @@ function takeawayAction(analysis, resolveResult) {
   const parts = [];
   if (top) {
     parts.push(
-      `Run a lightweight content/market test aimed at ${top.lang} readers around “${resolveResult.topic}”.`,
+      `Run a lightweight content/market test aimed at ${top.lang} readers around “${resolveResult.topic}”.`
     );
   }
   if (missing.length) {
     parts.push(
-      `Manually resolve missing wiki pages for ${missing.map((m) => m.lang).join(', ')} before comparing those locales.`,
+      `Manually resolve missing wiki pages for ${missing.map((m) => m.lang).join(', ')} before comparing those locales.`
     );
   }
-  parts.push('Cross-check with search trends or payment proxies before budget allocation.');
+  parts.push(
+    'Cross-check with search trends or payment proxies before budget allocation.'
+  );
   return parts.join(' ');
 }

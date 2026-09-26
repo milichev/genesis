@@ -4,6 +4,7 @@ import {
   pickGranularity,
   defaultDateRange,
 } from './lib/aqs.js';
+import { HttpError } from './lib/http.js';
 
 /**
  * @param {{
@@ -33,21 +34,23 @@ export async function fetchArticles(opts) {
     granularity = granularity || def.granularity;
   }
 
-  granularity =
-    granularity ||
-    pickGranularity(start, end, false);
+  granularity = granularity || pickGranularity(start, end, false);
 
   const fetched = [];
   const errors = [];
 
   for (const art of opts.articles) {
-    if (!art.title || art.status === 'missing_langlink') {
+    if (
+      !art.title ||
+      art.status === 'missing_langlink' ||
+      art.status === 'resolve_error'
+    ) {
       fetched.push({
         lang: art.lang,
         title: null,
         project: projectForLang(art.lang),
         series: null,
-        skipped: 'missing_langlink',
+        skipped: art.status || 'missing_langlink',
       });
       continue;
     }
@@ -73,10 +76,21 @@ export async function fetchArticles(opts) {
         end: pv.end,
       });
     } catch (err) {
-      errors.push({
+      const entry = {
         lang: art.lang,
         title: art.title,
         error: String(err.message || err),
+        http_status: err instanceof HttpError ? err.status : undefined,
+      };
+      errors.push(entry);
+      fetched.push({
+        lang: art.lang,
+        title: art.title,
+        project: projectForLang(art.lang),
+        series: null,
+        fetch_error: true,
+        error: entry.error,
+        http_status: entry.http_status,
       });
     }
   }

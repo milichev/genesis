@@ -1,25 +1,25 @@
 ---
 name: wiki-stats stabilize
-overview: "Stabilize wiki-stats: restore-confirmed codebase, harden Wikimedia HTTP (pacer + soft failures), add estimate/eta UX for agents, --log, articles[*].url, and publish/install docs + local e2e."
+overview: 'Stabilize wiki-stats: restore-confirmed codebase, harden Wikimedia HTTP (pacer + soft failures), add estimate/eta UX for agents, --log, articles[*].url, and publish/install docs + local e2e.'
 todos:
   - id: http-pacer
     content: Global pacer + Retry-After + soft HttpError in http.js; partial continue in resolve/fetch
-    status: pending
+    status: completed
   - id: cli-json-errors
     content: CLI always emits JSON on failure; never uncaught 429 stack
-    status: pending
+    status: completed
   - id: estimate-eta
     content: CLI `estimate` returns estimation + optional alert enum; SKILL only relays alert; run may echo same fields
-    status: pending
+    status: completed
   - id: log-flag
     content: Add --log=<file> request/pacer logging
-    status: pending
+    status: completed
   - id: articles-url
     content: Add articles[*].url to resolve + summary schema/docs
-    status: pending
+    status: completed
   - id: publish-docs-e2e
     content: references/publish.md + local npx skills add e2e check
-    status: pending
+    status: completed
 isProject: false
 ---
 

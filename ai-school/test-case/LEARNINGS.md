@@ -14,22 +14,16 @@
 - No Wikidata / category-graph topic expansion in MVP.
 - Metrics that stuck: **lang share %**, **growth = recent window vs YoY baseline**, spike flags, low-volume trust caveats.
 
-
-
 ## Stack
 
 - Node ESM that **ships as written** (no `tsc`/`tsx`). npm + lockfile; prefer zero deps (`fetch`).
 - pnpm was dropped for simplicity.
-
-
 
 ## Agent Skills / “publishing”
 
 - [skills.sh](https://www.skills.sh/) is a **leaderboard**, not an upload portal.
 - Distribute by git/local path: `npx skills add <path|owner/repo>`. Skill needs discoverable `SKILL.md`.
 - Install telemetry drives ranking; no separate publish API.
-
-
 
 ## Ops pain (→ stabilize plan)
 
@@ -38,17 +32,12 @@
 - Disk `.cache/` makes re-runs cheap; still pace first-hit bursts.
 - Langlinks from en often miss locales (e.g. pl for intermittent fasting) — use `--title pl:…`; don’t invent stats. Ukrainian code is `uk`, not `ua`.
 
-
-
 ## Viz
 
 - **SVG** = quantities (share bar + trend). **Mermaid** = relations (resolution map + audience priority), **CLI-generated** so models don’t freestyle wrong titles.
-
-
 
 ## Process
 
 - Grill before build: MVP cut + auto-resolve policy locked the architecture.
 - Parallel cheap agents (CLI vs docs) raced on `SKILL.md` — reconcile against real CLI flags before calling done.
 - Haiku smoke: one-shot works; document 429 backoff + “not localized” data-gap wording in `SKILL.md`.
-

@@ -1,8 +1,15 @@
-import { fetchJson } from './http.js';
-import { cacheKey, cachePath, readCache, writeCache, ensureCacheDir } from './cache.js';
+import { fetchJson, logHttpLine } from './http.js';
+import {
+  cacheKey,
+  cachePath,
+  readCache,
+  writeCache,
+  ensureCacheDir,
+} from './cache.js';
 import { encodeArticleTitle, normalizeTitle } from './mediawiki.js';
 
-const AQS_BASE = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article';
+const AQS_BASE =
+  'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article';
 
 /**
  * @param {Date} d
@@ -85,13 +92,23 @@ export async function fetchPageviews(opts) {
     end,
   ]);
   const cp = cachePath('aqs', key);
+  const url = `${AQS_BASE}/${project}/${access}/${agent}/${encoded}/${granularity}/${start}/${end}`;
   if (useCache) {
     await ensureCacheDir();
     const cached = await readCache(cp);
-    if (cached) return cached;
+    if (cached) {
+      await logHttpLine({
+        method: 'GET',
+        url,
+        status: 200,
+        durationMs: 0,
+        waitMs: 0,
+        cache: 'hit',
+      });
+      return cached;
+    }
   }
 
-  const url = `${AQS_BASE}/${project}/${access}/${agent}/${encoded}/${granularity}/${start}/${end}`;
   let data;
   try {
     data = await fetchJson(url);

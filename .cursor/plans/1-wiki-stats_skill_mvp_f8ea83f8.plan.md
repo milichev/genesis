@@ -24,14 +24,16 @@ isProject: false
 
 ## Case, elaborated
 
-**Problem.** B2C founders need a cheap signal for “what topic / which language wiki audience to explore next.” Wikimedia pageviews are not purchase intent, but they are public, multi-language, and time-series—good enough to prioritize *what to validate next*.
+**Problem.** B2C founders need a cheap signal for “what topic / which language wiki audience to explore next.” Wikimedia pageviews are not purchase intent, but they are public, multi-language, and time-series—good enough to prioritize _what to validate next_.
 
 **User jobs (from the brief).**
+
 - Compare interest growth for a topic across language Wikipedias over a time window.
 - Judge whether growth on one wiki is real vs noisy (spikes, seasonality, tiny base).
 - Rank audiences / topics and produce a short shareable brief.
 
 **Non-goals for MVP (3h).**
+
 - PDF generation (document in iteration roadmap; shape `brief.md` + charts so a 1-page PDF is a thin later step).
 - Wikidata / category-graph topic expansion (high debug risk; agent or user supplies topics).
 - Causal claims, monetization prediction, interactive dashboards.
@@ -82,6 +84,7 @@ wiki-stats/
 ```
 
 **Stack (shaved).**
+
 - Node 20+ ESM JavaScript only — code ships as written (`node scripts/cli.js` or `npx wiki-stats` after `npm install`).
 - **Package manager: npm** (`package-lock.json`). No pnpm/yarn.
 - **No TypeScript, no transpile, no `tsx`.** Prefer zero or minimal deps (native `fetch`).
@@ -141,6 +144,7 @@ flowchart LR
 - **PDF:** Out of MVP; roadmap item that reuses brief structure.
 
 **Resolve policy (streamlined).**
+
 1. Prefer explicit title if given (`uk:Астрономія`).
 2. Else search on a pivot wiki (query language, else `en`).
 3. Large gap #1 vs #2 → take #1; else `needs_confirmation` with 2–3 candidates.
@@ -149,6 +153,7 @@ flowchart LR
 **Pageviews.** AQS `per-article` with defaults: `all-access`, `user`, `monthly` for multi-year, `daily` when window ≤ ~90 days. Identifying `User-Agent`; backoff + cache.
 
 **Analyze outputs (into summary + brief).**
+
 - Totals and **per-language share %**.
 - **Growth slope** (recent window vs YoY baseline window).
 - Spike / outlier flags; low-volume trust warning.
@@ -170,6 +175,7 @@ JSON summary on stdout; diagnostics on stderr; `--help` everywhere.
 Frontmatter: `name: wiki-stats`, description keyed to Wikipedia interest / localization / B2C topic research, `compatibility: Node 20+, npm, network`.
 
 Body checklist:
+
 1. Parse topics, langs, window (default last 24 months).
 2. `npm install` once if needed; run from skill root.
 3. Prefer `wiki-stats run ...`; on `needs_confirmation`, ask once, re-run with `--title`.
@@ -185,25 +191,30 @@ Body checklist:
 **Work slicing: stop here.** The five phase blocks below (= the five plan todos) are the execution slices. No further task breakdown — for a 3h sprint that would cost more coordination than it saves. Execute phase-by-phase; if a phase slips, cut within it (e.g. drop second Mermaid template before dropping `run`).
 
 ### Phase 0 — Scaffold (15 min)
+
 - `package.json` (`type: module`, bin), `npm install` → lockfile, `.gitignore`, no `tsconfig`.
 - `SKILL.md` frontmatter + stub; `assets/brief-template.md` with KPI strip + Mermaid slot + two-chart slots + three takeaways + limitations.
 
 ### Phase 1 — Resolve + Fetch (40–50 min)
+
 - MediaWiki search/redirects/langlinks + ambiguity heuristic.
 - AQS client + UA + retries + encoding + disk cache.
 - Smoke: intermittent fasting → pl/cs; 24 months monthly.
 
 ### Phase 2 — Analyze + Chart + Mermaid + Brief (40–50 min)
+
 - Lang share, growth slope, spikes, trust notes → summary schema.
 - Two SVG charts (share bar + trend).
 - Emit resolution + audience-priority Mermaid (`relations.mmd` + embed in brief).
 - `brief` from template; `run` orchestrator printing **only** the summary.
 
 ### Phase 3 — Skill polish for Haiku (25–35 min)
+
 - Tighten commands/defaults/gotchas; `references/aqs.md`, `metrics.md`.
 - `evals/evals.json` from the three case prompts (assert: summary size small, artifacts exist, Mermaid present, caveats present).
 
 ### Phase 4 — Verify + roadmap (20–30 min)
+
 - Smoke without network mocks where easy; one live run; optional Haiku/OpenRouter pass.
 - `references/roadmap.md`: 1-page PDF, Wikidata/related-concept Mermaid, relative interest vs project totals, eval loop.
 

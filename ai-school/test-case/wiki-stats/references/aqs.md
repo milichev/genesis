@@ -35,23 +35,37 @@ Official reference: [Pageviews API](https://doc.wikimedia.org/generated-data-pla
 
 Wikimedia requires an **identifying** User-Agent string (app name, contact URL or email). Generic library defaults may be blocked.
 
-- Set a stable UA in the CLI HTTP client (e.g. `wiki-stats/0.1 (Agent Skills case study; contact: …)`).
-- If you see **403** or “please set User-Agent”, fix UA before retrying.
+- Override with env **`WIKI_STATS_UA`**. Required shape: `wiki-stats/0.1 (https://…; email@…)` — app name, project URL, contact email.
+- Default in code: `wiki-stats/0.1.0 (https://github.com/genesis/ai-school; contact@example.com)`.
+- If you see **403** or “please set User-Agent”, set `WIKI_STATS_UA` before retrying.
 
-## Rate limits & retries
+## Global pacer & retries (CLI)
 
-- Public APIs are shared: **back off** on 429 / 503; avoid hammering the same article in a tight loop.
+The shared HTTP client (`scripts/lib/http.js`) applies:
+
+- **One in-flight request** per process (safest under Wikimedia “≤3 concurrent” guidance).
+- **Minimum 350ms** between request starts (~170 req/min, under the ~200/min UA-only cap).
+- **429 / 503:** honor `Retry-After` (seconds or HTTP-date); if absent, wait **≥5s**; exponential backoff; **~5 attempts** per URL.
+- After retries: throws typed **`HttpError`** `{ status, retryable, url }`. Resolve/fetch mark per-lang failures and continue when possible; CLI stdout stays JSON on fatal errors.
+
+Optional **`--log=<file>`** appends one line per paced request (or cache hit from AQS): ISO time, method, URL, status/error, duration ms, pacer `wait_ms`, `cache=hit|miss`.
+
+## Rate limits & cache
+
+- Public APIs are shared: the pacer + backoff above replace ad-hoc agent retries.
 - **Cache** responses under `.cache/` (gitignored); re-runs with the same project/title/range should hit disk.
 - Prefer **`run` once** per user question rather than many parallel fetches from the agent.
+- Run **`wiki-stats estimate`** before long multi-lang jobs; 429 storms can exceed the cold-path estimate.
 
 ## Common failure modes
 
-| Symptom | Likely cause | Action |
-| --- | --- | --- |
-| 404 on pageviews | Wrong project slug, wrong encoded title, or deleted page | Re-run `resolve`; verify `lang.wikipedia` |
-| Empty series | Title mismatch, range before page existed, or granularity/date format wrong | Check start/end format; widen window |
-| Wildly low views | Used `agent=spider` vs `user`, or wrong article | Confirm `user` agent segment |
-| Resolve picks wrong topic | Ambiguous search | Wait for `needs_confirmation`; user picks `--title` |
+| Symptom                    | Likely cause                                                                | Action                                                           |
+| -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 404 on pageviews           | Wrong project slug, wrong encoded title, or deleted page                    | Re-run `resolve`; verify `lang.wikipedia`                        |
+| Empty series               | Title mismatch, range before page existed, or granularity/date format wrong | Check start/end format; widen window                             |
+| Wildly low views           | Used `agent=spider` vs `user`, or wrong article                             | Confirm `user` agent segment                                     |
+| Resolve picks wrong topic  | Ambiguous search                                                            | Wait for `needs_confirmation`; user picks `--title`              |
+| stdout `status: "partial"` | Some langs failed AQS after retries                                         | Read `fetch_errors` and `caveats[]`; do not invent missing langs |
 
 ## `project` vs language code
 

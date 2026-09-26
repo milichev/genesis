@@ -86,7 +86,14 @@ function renderTrend(articles, granularity) {
   }
 
   const maxY = Math.max(...seriesByLang.flatMap((s) => s.points), 1);
-  const colors = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2'];
+  const colors = [
+    '#2563eb',
+    '#dc2626',
+    '#16a34a',
+    '#9333ea',
+    '#ea580c',
+    '#0891b2',
+  ];
 
   const xStep = timestamps.length > 1 ? plotW / (timestamps.length - 1) : plotW;
 

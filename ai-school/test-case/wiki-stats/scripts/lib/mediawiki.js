@@ -10,6 +10,12 @@ export function encodeArticleTitle(title) {
   return encodeURIComponent(normalizeTitle(title));
 }
 
+/** @param {string} lang @param {string | null | undefined} title */
+export function wikiArticleUrl(lang, title) {
+  if (!title) return null;
+  return `https://${lang}.wikipedia.org/wiki/${encodeArticleTitle(title)}`;
+}
+
 /** @param {string} lang */
 export function wikiApiBase(lang) {
   return `https://${lang}.wikipedia.org/w/api.php`;
@@ -64,7 +70,11 @@ export async function getLanglinks(lang, title) {
     lang: ll.lang,
     title: ll['*'],
   }));
-  return { title: page.title.replace(/ /g, '_'), langlinks: links, missing: false };
+  return {
+    title: page.title.replace(/ /g, '_'),
+    langlinks: links,
+    missing: false,
+  };
 }
 
 /**

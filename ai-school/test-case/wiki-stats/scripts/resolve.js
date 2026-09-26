@@ -4,14 +4,13 @@ import {
   parseExplicitTitle,
   normalizeTitle,
   resolveTitleOnWiki,
+  wikiArticleUrl,
 } from './lib/mediawiki.js';
+import { HttpError } from './lib/http.js';
 
 /** @param {string} query @param {string} title */
 function tokenScore(query, title) {
-  const words = query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return 0;
   const t = title.toLowerCase().replace(/_/g, ' ');
   let hits = 0;
@@ -55,6 +54,13 @@ function pickSearchResult(candidates, query) {
   return { status: 'ok', chosen: candidates[0] };
 }
 
+function httpErrorPayload(err) {
+  if (err instanceof HttpError) {
+    return { error: err.message, http_status: err.status };
+  }
+  return { error: String(err.message || err) };
+}
+
 /**
  * @param {{
  *   topic: string,
@@ -70,76 +76,99 @@ export async function resolveTopic(input) {
   let pivotArticle;
   let topicLabel = input.topic;
 
-  if (input.title) {
-    const explicit = parseExplicitTitle(input.title);
-    if (explicit) {
-      const resolved = await resolveTitleOnWiki(explicit.lang, explicit.title);
-      if (!resolved) {
-        return {
-          status: 'error',
-          error: `Title not found: ${input.title}`,
-        };
+  try {
+    if (input.title) {
+      const explicit = parseExplicitTitle(input.title);
+      if (explicit) {
+        const resolved = await resolveTitleOnWiki(
+          explicit.lang,
+          explicit.title
+        );
+        if (!resolved) {
+          return {
+            status: 'error',
+            error: `Title not found: ${input.title}`,
+          };
+        }
+        pivotLang = explicit.lang;
+        pivotArticle = { lang: explicit.lang, title: resolved };
+        topicLabel = input.topic || explicit.title.replace(/_/g, ' ');
+      } else {
+        const resolved = await resolveTitleOnWiki(pivotLang, input.title);
+        if (!resolved) {
+          return {
+            status: 'error',
+            error: `Title not found on ${pivotLang}: ${input.title}`,
+          };
+        }
+        pivotArticle = { lang: pivotLang, title: resolved };
       }
-      pivotLang = explicit.lang;
-      pivotArticle = { lang: explicit.lang, title: resolved };
-      topicLabel = input.topic || explicit.title.replace(/_/g, ' ');
     } else {
-      const resolved = await resolveTitleOnWiki(pivotLang, input.title);
-      if (!resolved) {
-        return {
-          status: 'error',
-          error: `Title not found on ${pivotLang}: ${input.title}`,
+      const explicit = parseExplicitTitle(input.topic);
+      if (explicit) {
+        const resolved = await resolveTitleOnWiki(
+          explicit.lang,
+          explicit.title
+        );
+        if (!resolved) {
+          return { status: 'error', error: `Title not found: ${input.topic}` };
+        }
+        pivotArticle = { lang: explicit.lang, title: resolved };
+        topicLabel = explicit.title.replace(/_/g, ' ');
+      } else {
+        let searchLang = pivotLang;
+        let candidates = await opensearch(searchLang, input.topic, 5);
+        if (candidates.length === 0 && searchLang !== 'en') {
+          searchLang = 'en';
+          candidates = await opensearch(searchLang, input.topic, 5);
+        }
+        const pick = pickSearchResult(candidates, input.topic);
+        if (pick.status === 'needs_confirmation') {
+          return {
+            status: 'needs_confirmation',
+            pivot_lang: searchLang,
+            query: input.topic,
+            candidates: pick.candidates,
+            reason: pick.reason,
+          };
+        }
+        if (pick.status === 'not_found') {
+          return { status: 'error', error: `No articles for: ${input.topic}` };
+        }
+        pivotLang = searchLang;
+        const resolved = await resolveTitleOnWiki(
+          searchLang,
+          pick.chosen.title
+        );
+        pivotArticle = {
+          lang: searchLang,
+          title: resolved || normalizeTitle(pick.chosen.title),
         };
       }
-      pivotArticle = { lang: pivotLang, title: resolved };
     }
-  } else {
-    const explicit = parseExplicitTitle(input.topic);
-    if (explicit) {
-      const resolved = await resolveTitleOnWiki(explicit.lang, explicit.title);
-      if (!resolved) {
-        return { status: 'error', error: `Title not found: ${input.topic}` };
-      }
-      pivotArticle = { lang: explicit.lang, title: resolved };
-      topicLabel = explicit.title.replace(/_/g, ' ');
-    } else {
-      let searchLang = pivotLang;
-      let candidates = await opensearch(searchLang, input.topic, 5);
-      if (candidates.length === 0 && searchLang !== 'en') {
-        searchLang = 'en';
-        candidates = await opensearch(searchLang, input.topic, 5);
-      }
-      const pick = pickSearchResult(candidates, input.topic);
-      if (pick.status === 'needs_confirmation') {
-        return {
-          status: 'needs_confirmation',
-          pivot_lang: searchLang,
-          query: input.topic,
-          candidates: pick.candidates,
-          reason: pick.reason,
-        };
-      }
-      if (pick.status === 'not_found') {
-        return { status: 'error', error: `No articles for: ${input.topic}` };
-      }
-      pivotLang = searchLang;
-      const resolved = await resolveTitleOnWiki(
-        searchLang,
-        pick.chosen.title,
-      );
-      pivotArticle = {
-        lang: searchLang,
-        title: resolved || normalizeTitle(pick.chosen.title),
-      };
-    }
+  } catch (err) {
+    return { status: 'error', ...httpErrorPayload(err) };
   }
 
-  const llData = await getLanglinks(pivotArticle.lang, pivotArticle.title);
-  const linkMap = new Map(
-    llData.langlinks.map((ll) => [ll.lang, normalizeTitle(ll.title)]),
-  );
+  let linkMap = new Map();
+  let langlinkSource = pivotArticle.title;
+  /** @type {string | null} */
+  let langlinkFailure = null;
 
-  /** @type {Array<{ lang: string, title: string, status: string }>} */
+  try {
+    const llData = await getLanglinks(pivotArticle.lang, pivotArticle.title);
+    linkMap = new Map(
+      llData.langlinks.map((ll) => [ll.lang, normalizeTitle(ll.title)])
+    );
+    langlinkSource = llData.title;
+  } catch (err) {
+    langlinkFailure =
+      err instanceof HttpError
+        ? `langlinks HTTP ${err.status}: ${err.message}`
+        : String(err.message || err);
+  }
+
+  /** @type {Array<{ lang: string, title: string | null, status: string, url: string | null }>} */
   const articles = [];
   const targetLangs = new Set(langs);
 
@@ -149,22 +178,46 @@ export async function resolveTopic(input) {
         lang,
         title: pivotArticle.title,
         status: 'pivot',
+        url: wikiArticleUrl(lang, pivotArticle.title),
+      });
+      continue;
+    }
+    if (langlinkFailure) {
+      articles.push({
+        lang,
+        title: null,
+        status: 'resolve_error',
+        url: null,
       });
       continue;
     }
     const linked = linkMap.get(lang);
     if (linked) {
-      articles.push({ lang, title: linked, status: 'linked' });
+      articles.push({
+        lang,
+        title: linked,
+        status: 'linked',
+        url: wikiArticleUrl(lang, linked),
+      });
     } else {
-      articles.push({ lang, title: null, status: 'missing_langlink' });
+      articles.push({
+        lang,
+        title: null,
+        status: 'missing_langlink',
+        url: null,
+      });
     }
   }
 
-  return {
+  const out = {
     status: 'ok',
     topic: topicLabel,
     pivot: pivotArticle,
     articles,
-    langlink_source: llData.title,
+    langlink_source: langlinkSource,
   };
+  if (langlinkFailure) {
+    out.langlink_error = langlinkFailure;
+  }
+  return out;
 }

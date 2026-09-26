@@ -17,7 +17,10 @@ export function analyzePageviews(articles, window) {
       title: x.title,
       views: x.total,
       share_pct: combined > 0 ? round((100 * x.total) / combined, 1) : 0,
-      ...growthForSeries(active.find((a) => a.lang === x.lang).series, window.granularity),
+      ...growthForSeries(
+        active.find((a) => a.lang === x.lang).series,
+        window.granularity
+      ),
     }))
     .sort((a, b) => b.views - a.views);
 
@@ -26,7 +29,7 @@ export function analyzePageviews(articles, window) {
 
   const top = perLang[0];
   const topGrowth = [...perLang].sort(
-    (a, b) => (b.growth_pct ?? -999) - (a.growth_pct ?? -999),
+    (a, b) => (b.growth_pct ?? -999) - (a.growth_pct ?? -999)
   )[0];
 
   return {
@@ -56,7 +59,9 @@ function growthForSeries(series, granularity) {
   if (!series || series.length < 4) {
     return { growth_pct: null, growth_label: 'insufficient_data' };
   }
-  const sorted = [...series].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const sorted = [...series].sort((a, b) =>
+    a.timestamp.localeCompare(b.timestamp)
+  );
   const n = granularity === 'monthly' ? 3 : 30;
   const recent = sorted.slice(-n);
   const recentSum = sumViews(recent);
@@ -64,7 +69,7 @@ function growthForSeries(series, granularity) {
   let baseline = [];
   if (granularity === 'monthly') {
     const baselineTs = new Set(
-      recent.map((p) => shiftTimestampMonths(p.timestamp, -12)),
+      recent.map((p) => shiftTimestampMonths(p.timestamp, -12))
     );
     baseline = sorted.filter((p) => baselineTs.has(p.timestamp));
   } else {
@@ -132,26 +137,32 @@ function buildCaveats(combined, perLang, articles, window) {
   const caveats = [
     'Wikipedia pageviews measure readership interest, not willingness to pay or course enrollment.',
   ];
-  const missing = articles.filter((a) => a.status === 'missing_langlink' || !a.title);
+  const missing = articles.filter(
+    (a) =>
+      a.status === 'missing_langlink' ||
+      a.status === 'resolve_error' ||
+      a.status === 'fetch_error' ||
+      !a.title
+  );
   if (missing.length) {
     caveats.push(
-      `Missing langlinks for: ${missing.map((m) => m.lang).join(', ')} — no pageview series fetched.`,
+      `Missing langlinks for: ${missing.map((m) => m.lang).join(', ')} — no pageview series fetched.`
     );
   }
   if (combined < 5000) {
     caveats.push(
-      'Low combined volume in window; percentage shares and growth slopes may be noisy.',
+      'Low combined volume in window; percentage shares and growth slopes may be noisy.'
     );
   }
   const tiny = perLang.filter((p) => p.views < 500);
   if (tiny.length) {
     caveats.push(
-      `Very low views for ${tiny.map((t) => t.lang).join(', ')}; treat rankings cautiously.`,
+      `Very low views for ${tiny.map((t) => t.lang).join(', ')}; treat rankings cautiously.`
     );
   }
   if (window.granularity === 'monthly') {
     caveats.push(
-      'Monthly series smooths short spikes; check spike flags and event-driven outliers.',
+      'Monthly series smooths short spikes; check spike flags and event-driven outliers.'
     );
   }
   return caveats;
@@ -172,15 +183,33 @@ function round(n, d) {
  * @param {object} analysis
  * @param {object} paths
  */
-export function buildSummary(resolveResult, fetchBundle, analysis, paths) {
-  return {
-    status: 'ok',
+export function buildSummary(
+  resolveResult,
+  fetchBundle,
+  analysis,
+  paths,
+  opts = {}
+) {
+  const hasFetchErrors = (fetchBundle.errors?.length ?? 0) > 0;
+  const hasData = (analysis.kpis?.combined_views ?? 0) > 0;
+  let status = 'ok';
+  if (hasFetchErrors && hasData) status = 'partial';
+  if (!hasData && hasFetchErrors) status = 'error';
+
+  const summary = {
+    status: opts.forceStatus ?? status,
     topic: resolveResult.topic,
-    articles: resolveResult.articles.map((a) => ({
-      lang: a.lang,
-      title: a.title,
-      status: a.status,
-    })),
+    articles: resolveResult.articles.map((a) => {
+      const fetched = fetchBundle.articles.find((f) => f.lang === a.lang);
+      let articleStatus = a.status;
+      if (fetched?.fetch_error) articleStatus = 'fetch_error';
+      return {
+        lang: a.lang,
+        title: a.title,
+        status: articleStatus,
+        url: a.url ?? null,
+      };
+    }),
     window: fetchBundle.window,
     kpis: analysis.kpis,
     per_lang: analysis.per_lang.map((p) => ({
@@ -194,4 +223,7 @@ export function buildSummary(resolveResult, fetchBundle, analysis, paths) {
     caveats: analysis.caveats,
     paths,
   };
+  if (opts.estimation != null) summary.estimation = opts.estimation;
+  if (opts.alert) summary.alert = opts.alert;
+  return summary;
 }

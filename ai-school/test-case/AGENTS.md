@@ -10,14 +10,10 @@ Skill directory: `[wiki-stats/](wiki-stats/)` — Agent Skills layout (`SKILL.md
 
 ## Plans (source of truth for intent)
 
-
 | Plan      | Path                                                                                                                   | Status |
 | --------- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
 | MVP       | `[.cursor/plans/1-wiki-stats_skill_mvp_f8ea83f8.plan.md](../../.cursor/plans/1-wiki-stats_skill_mvp_f8ea83f8.plan.md)` | Done   |
-| Stabilize | `[.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md](../../.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md)` | Next   |
-
-
-
+| Stabilize | `[.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md](../../.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md)` | Done   |
 
 ## How to run (from skill root)
 
@@ -34,4 +30,3 @@ Stdout = small JSON summary only. Artifacts under `output/` (`brief.md`, SVGs, M
 - Stack: Node 20+ ESM, npm, **no TypeScript/transpile**.
 - Pageviews ≠ willingness to pay; always surface caveats.
 - `missing_langlink` = data gap, not zero demand.
-

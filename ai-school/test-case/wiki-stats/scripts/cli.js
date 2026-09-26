@@ -8,6 +8,8 @@ import { analyzePageviews, buildSummary } from './analyze.js';
 import { writeCharts } from './chart.js';
 import { writeBrief } from './brief.js';
 import { SKILL_ROOT } from './lib/cache.js';
+import { setLogSink, HttpError } from './lib/http.js';
+import { computeEstimate } from './lib/estimate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -15,6 +17,7 @@ function usage() {
   return `wiki-stats — Wikipedia pageview analysis CLI
 
 Usage:
+  wiki-stats estimate --langs pl,cs,uk [--months 24]
   wiki-stats resolve --topic <q> [--langs pl,cs] [--title en:Foo]
   wiki-stats fetch --input <resolve.json> [--months 24]
   wiki-stats analyze --input <fetch.json>
@@ -24,7 +27,8 @@ Usage:
       [--title en:Foo] [--start YYYYMM|YYYYMMDD] [--end YYYYMM|YYYYMMDD] [--out dir]
 
 Global:
-  --help    Show help
+  --help           Show help
+  --log=<file>     Append paced HTTP log (timestamp, method, URL, status, ms, wait_ms, cache)
 
 Exit codes: 0 ok · 1 error · 2 usage · 3 needs_confirmation (resolve/run)
 `;
@@ -40,7 +44,15 @@ function parseArgs(argv) {
       continue;
     }
     if (a.startsWith('--')) {
-      const key = a.slice(2);
+      let key = a.slice(2);
+      let val;
+      const eq = key.indexOf('=');
+      if (eq !== -1) {
+        val = key.slice(eq + 1);
+        key = key.slice(0, eq);
+        out[key] = val;
+        continue;
+      }
       const next = argv[i + 1];
       if (!next || next.startsWith('--')) {
         out[key] = true;
@@ -63,9 +75,27 @@ function parseLangs(raw) {
     .filter(Boolean);
 }
 
+function printJsonError(err) {
+  /** @type {Record<string, unknown>} */
+  const payload = {
+    status: 'error',
+    error: String(err?.message || err),
+  };
+  if (err instanceof HttpError) {
+    payload.http_status = err.status;
+  }
+  console.log(JSON.stringify(payload));
+}
+
 async function readJsonFile(p) {
   const abs = path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
   return JSON.parse(await fs.readFile(abs, 'utf8'));
+}
+
+async function cmdEstimate(args) {
+  const langs = parseLangs(args.langs || 'en');
+  const result = computeEstimate(langs);
+  console.log(JSON.stringify(result));
 }
 
 async function cmdResolve(args) {
@@ -112,12 +142,14 @@ async function cmdChart(args) {
   const analysis = args.analysis
     ? await readJsonFile(args.analysis)
     : analyzePageviews(fetchBundle.articles, fetchBundle.window);
-  const outDir = path.resolve(args.out || path.join(SKILL_ROOT, 'output', 'charts'));
+  const outDir = path.resolve(
+    args.out || path.join(SKILL_ROOT, 'output', 'charts')
+  );
   const paths = await writeCharts(
     analysis.per_lang,
     fetchBundle.articles,
     fetchBundle.window,
-    outDir,
+    outDir
   );
   console.log(JSON.stringify(paths, null, 2));
 }
@@ -134,17 +166,23 @@ async function cmdBrief(args) {
         analysis.per_lang,
         fetchBundle.articles,
         fetchBundle.window,
-        path.join(path.resolve(args.out), 'charts'),
+        path.join(path.resolve(args.out), 'charts')
       );
-  const outDir = path.resolve(args.out || path.join(SKILL_ROOT, 'output', 'brief'));
+  const outDir = path.resolve(
+    args.out || path.join(SKILL_ROOT, 'output', 'brief')
+  );
   const paths = await writeBrief(
     resolveResult,
     fetchBundle,
     analysis,
     chartPaths,
-    outDir,
+    outDir
   );
   console.log(JSON.stringify(paths, null, 2));
+}
+
+function hasUsableSeries(fetchBundle) {
+  return fetchBundle.articles.some((a) => a.series && a.series.length > 0);
 }
 
 async function cmdRun(args) {
@@ -153,6 +191,8 @@ async function cmdRun(args) {
     process.exit(2);
   }
   const langs = parseLangs(args.langs || 'en');
+  const eta = computeEstimate(langs);
+
   const resolveResult = await resolveTopic({
     topic: args.topic || args.title,
     langs,
@@ -168,12 +208,18 @@ async function cmdRun(args) {
         pivot_lang: resolveResult.pivot_lang,
         candidates: resolveResult.candidates,
         reason: resolveResult.reason,
-      }),
+      })
     );
     process.exit(3);
   }
   if (resolveResult.status === 'error') {
-    console.log(JSON.stringify({ status: 'error', error: resolveResult.error }));
+    console.log(
+      JSON.stringify({
+        status: 'error',
+        error: resolveResult.error,
+        http_status: resolveResult.http_status,
+      })
+    );
     process.exit(1);
   }
 
@@ -182,7 +228,7 @@ async function cmdRun(args) {
     .replace(/[^a-z0-9]+/g, '-')
     .slice(0, 48);
   const outDir = path.resolve(
-    args.out || path.join(SKILL_ROOT, 'output', `${slug}-${Date.now()}`),
+    args.out || path.join(SKILL_ROOT, 'output', `${slug}-${Date.now()}`)
   );
 
   const fetchBundle = await fetchArticles({
@@ -193,34 +239,74 @@ async function cmdRun(args) {
     granularity: args.granularity,
   });
 
+  if (!hasUsableSeries(fetchBundle)) {
+    console.log(
+      JSON.stringify({
+        status: 'error',
+        error: 'No pageview series available for any language',
+        topic: resolveResult.topic,
+        fetch_errors: fetchBundle.errors,
+        articles: resolveResult.articles.map((a) => ({
+          lang: a.lang,
+          status: a.status,
+          url: a.url ?? null,
+        })),
+      })
+    );
+    process.exit(1);
+  }
+
   const articlesForAnalyze = fetchBundle.articles.map((a) => {
     const meta = resolveResult.articles.find((r) => r.lang === a.lang);
-    return { ...a, status: meta?.status };
+    let status = meta?.status;
+    if (a.fetch_error) status = 'fetch_error';
+    return { ...a, status };
   });
 
   const analysis = analyzePageviews(articlesForAnalyze, fetchBundle.window);
+
+  if (fetchBundle.errors?.length) {
+    analysis.caveats.push(
+      `AQS fetch failed for: ${fetchBundle.errors.map((e) => e.lang).join(', ')} — partial results only.`
+    );
+  }
+  if (resolveResult.langlink_error) {
+    analysis.caveats.push(
+      `Langlinks unavailable (${resolveResult.langlink_error}); non-pivot languages may be skipped.`
+    );
+  }
+
   const chartDir = path.join(outDir, 'charts');
   const chartPaths = await writeCharts(
     analysis.per_lang,
     fetchBundle.articles,
     fetchBundle.window,
-    chartDir,
+    chartDir
   );
   const briefPaths = await writeBrief(
     resolveResult,
     fetchBundle,
     analysis,
     chartPaths,
-    outDir,
+    outDir
   );
 
-  const summary = buildSummary(resolveResult, fetchBundle, analysis, {
-    out_dir: outDir,
-    brief: briefPaths.brief,
-    relations_mmd: briefPaths.relations,
-    chart_lang_share: chartPaths.lang_share,
-    chart_trend: chartPaths.trend,
-  });
+  const summary = buildSummary(
+    resolveResult,
+    fetchBundle,
+    analysis,
+    {
+      out_dir: outDir,
+      brief: briefPaths.brief,
+      relations_mmd: briefPaths.relations,
+      chart_lang_share: chartPaths.lang_share,
+      chart_trend: chartPaths.trend,
+    },
+    {
+      estimation: eta.estimation,
+      alert: eta.alert,
+    }
+  );
 
   if (fetchBundle.errors?.length) {
     summary.fetch_errors = fetchBundle.errors;
@@ -240,6 +326,10 @@ async function main() {
   const args = parseArgs(argv);
   const cmd = args._[0];
 
+  if (args.log) {
+    setLogSink(String(args.log));
+  }
+
   if (args.help || !cmd) {
     process.stdout.write(usage());
     process.exit(cmd ? 0 : 2);
@@ -247,6 +337,9 @@ async function main() {
 
   try {
     switch (cmd) {
+      case 'estimate':
+        await cmdEstimate(args);
+        break;
       case 'resolve':
         await cmdResolve(args);
         break;
@@ -272,6 +365,7 @@ async function main() {
     }
   } catch (err) {
     console.error(String(err.stack || err));
+    printJsonError(err);
     process.exit(1);
   }
 }
