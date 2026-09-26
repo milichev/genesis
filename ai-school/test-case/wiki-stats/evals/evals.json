@@ -1,15 +1,21 @@
 {
   "skill": "wiki-stats",
   "version": "0.1.0",
-  "notes": "Prompts from pes_task_1.md case study. Run from skill root after npm install. Assertions assume wiki-stats run prints a concise summary and writes artifacts under paths.",
+  "notes": "Prompts from pes_task_1.md case study. Run from skill root after npm install. Assertions assume wiki-stats run prints a concise summary (no embedded series) and writes artifacts under paths. Exit code 3 = needs_confirmation.",
+  "summary_schema_hint": {
+    "top_level": ["status", "topic", "articles", "window", "kpis", "per_lang", "spikes", "caveats", "paths"],
+    "paths": ["out_dir", "brief", "relations_mmd", "chart_lang_share", "chart_trend"],
+    "per_lang_fields": ["lang", "views", "share_pct", "growth_pct", "growth_label"]
+  },
   "evals": [
     {
       "id": "fasting-pl-cs-yoy",
       "source": "pes_task_1 example 1",
       "prompt": "Порівняй зростання інтересу до інтервального голодування в польськомовній та чеськомовній Wikipedia за останні два роки.",
       "prompt_en": "Compare interest growth for intermittent fasting on Polish and Czech Wikipedia over the last two years.",
-      "suggested_cli": "npx wiki-stats run --topic \"intermittent fasting\" --langs pl,cs --start <24mo_start> --end <today>",
-      "expected_output": "Agent compares pl vs cs using summary per_lang growth_slope and share_pct; references brief.md KPI strip and trend chart; includes CLI Mermaid (resolution + audience priority); states pageviews are not purchase intent.",
+      "suggested_cli": "npx wiki-stats run --topic \"Intermittent fasting\" --langs pl,cs --months 24",
+      "fixture_note": "As of MVP smoke data, en:Intermittent_fasting often lacks a pl langlink — expect cs-only pageviews unless the user confirms a pl title and the agent re-runs with --title pl:…. Agent must not invent pl numbers.",
+      "expected_output": "Agent compares pl vs cs using summary per_lang growth_pct and share_pct where data exists; explains missing pl if status missing_langlink; references brief.md KPI strip and trend chart; includes CLI Mermaid (resolution + audience priority); states pageviews are not purchase intent.",
       "assertions": [
         {
           "type": "cli_invoked",
@@ -22,7 +28,11 @@
         },
         {
           "type": "summary_fields_present",
-          "fields": ["articles", "kpis", "per_lang", "caveats", "paths"]
+          "fields": ["status", "topic", "articles", "window", "kpis", "per_lang", "spikes", "caveats", "paths"]
+        },
+        {
+          "type": "paths_fields_present",
+          "fields": ["brief", "relations_mmd", "chart_lang_share", "chart_trend"]
         },
         {
           "type": "artifact_exists",
@@ -49,7 +59,7 @@
         },
         {
           "type": "response_no_hallucination",
-          "rule": "Numeric views/shares/slopes in agent text must match summary JSON within rounding"
+          "rule": "Numeric views/shares/growth_pct in agent text must match summary JSON within rounding; no pl stats if pl missing_langlink"
         }
       ]
     },
@@ -58,8 +68,8 @@
       "source": "pes_task_1 example 2",
       "prompt": "Ми думаємо додати курс з астрономії до освітнього застосунку. Чи зростає інтерес до цієї теми в україномовній Wikipedia, і наскільки цьому зростанню можна довіряти?",
       "prompt_en": "We plan an astronomy course for an educational app. Is interest in astronomy growing on Ukrainian Wikipedia, and how trustworthy is that growth?",
-      "suggested_cli": "npx wiki-stats run --topic \"astronomy\" --langs uk --start <24mo_start> --end <today>",
-      "expected_output": "Agent answers growth yes/no from growth_slope; explicitly addresses trust via absolute views, window length, spikes[] and caveats[]; does not promise enrollment or revenue; may use uk:Астрономія or resolved title from summary.",
+      "suggested_cli": "npx wiki-stats run --topic \"astronomy\" --langs uk --months 24",
+      "expected_output": "Agent answers growth yes/no from growth_pct; explicitly addresses trust via absolute views, window length, spikes[] and caveats[]; does not promise enrollment or revenue; may use uk:Астрономія or resolved title from summary.",
       "assertions": [
         {
           "type": "cli_invoked",
@@ -96,9 +106,9 @@
       "source": "pes_task_1 example 3",
       "prompt": "Ми створюємо застосунок для вивчення мов. Порівняй інтерес до вивчення англійської у вибраних нами мовних розділах та підготуй короткий звіт: які аудиторії варто дослідити наступними й чому?",
       "prompt_en": "We are building a language-learning app. Compare interest in learning English across our chosen Wikipedia language editions and prepare a short report on which audiences to explore next and why.",
-      "suggested_cli": "npx wiki-stats run --topic \"English language\" --langs pl,de,es,fr,uk --start <24mo_start> --end <today>",
+      "suggested_cli": "npx wiki-stats run --topic \"English language\" --langs pl,de,es,fr,uk --months 24",
       "user_followup_note": "If user did not list langs, agent asks once for target editions or uses a reasonable default set and states the assumption.",
-      "expected_output": "Shareable brief.md with KPI strip, Mermaid audience priority, two SVG charts; agent ranks locales using share_pct and growth_slope; three takeaways map to Language expansion / Market momentum / Action item.",
+      "expected_output": "Shareable brief.md with KPI strip, Mermaid audience priority, two SVG charts; agent ranks locales using share_pct and growth_pct; three takeaways map to Language expansion / Market momentum / Action item.",
       "assertions": [
         {
           "type": "cli_invoked",
@@ -130,7 +140,7 @@
         {
           "type": "response_structure",
           "must_include": ["audience", "auditor", "audiences", "аудитор", "мов", "language"],
-          "ranking_grounded_in": ["share_pct", "growth_slope"]
+          "ranking_grounded_in": ["share_pct", "growth_pct"]
         },
         {
           "type": "response_caveats",

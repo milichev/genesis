@@ -1,6 +1,6 @@
 ---
 name: wiki-stats
-description: Resolves Wikipedia topics to articles, fetches Wikimedia Analytics pageviews across language editions, and computes language demand share, YoY growth slopes, and spike flags. Writes SVG charts, CLI-generated Mermaid maps, brief.md, and a small JSON summary on stdout. Use for B2C topic research, localization priority, Wikipedia interest trends, cross-language audience comparison, and validating what to explore next (courses, apps, new languages)—pageviews are not willingness to pay. Keywords: pageviews, AQS, langlinks, intermittent fasting, astronomy, language learning, market momentum.
+description: Evaluates B2C market demand and localization priorities by analyzing cross-language Wikipedia pageviews (AQS), computing YoY growth slopes and demand share, and outputting SVG charts, Mermaid maps, brief.md, and stdout JSON summary. Ideal for validating new app/course topics and cross-language audience interest (pageviews indicate curiosity, not willingness to pay).
 compatibility: Node 20+, npm install in skill root, outbound network (MediaWiki + Wikimedia Analytics APIs)
 disable-model-invocation: true
 ---
@@ -28,16 +28,28 @@ CLI does fetch, math, charts, and briefs. You parse the user question, run the C
    npx wiki-stats run \
      --topic "intermittent fasting" \
      --langs pl,cs \
-     --start YYYYMM \
-     --end YYYYMM
+     --months 24
    ```
 
-   Equivalent: `node scripts/cli.js run ...`
+   Equivalent: `node scripts/cli.js run ...` (from this skill root, after `npm install`).
 
-4. If stdout includes **`needs_confirmation`**, show the candidate titles (2–3 max), ask the user once, then re-run with `--title "lang:Article_title"` (underscores as in Wikipedia URLs).
-5. Read **stdout JSON**: `articles`, `kpis`, `per_lang[]`, `spikes[]`, `caveats[]`, `paths` (`brief.md`, SVGs, `relations.mmd`).
-6. Open **`paths.brief`** (or the path printed). Use KPI strip, embedded Mermaid, chart images, and takeaways when composing the user-facing answer.
-7. **Reply structure**: short executive answer → paste or summarize CLI Mermaid if helpful → three bullets aligned with brief takeaways → caveats. Point to on-disk `brief.md` and charts for sharing.
+   **Flags (match CLI):**
+
+   | Flag | Role |
+   | --- | --- |
+   | `--topic` | Search phrase (required unless you pass `--title` only via resolve path) |
+   | `--langs` | Comma-separated ISO codes (default `en`) |
+   | `--months` | Rolling window length when `--start`/`--end` omitted (default **24**, monthly granularity) |
+   | `--pivot` | Wiki language for search when topic is ambiguous (default **en**) |
+   | `--title` | Skip search: `en:Intermittent_fasting` or bare title on pivot wiki |
+   | `--start` / `--end` | Explicit AQS range (`YYYYMM` monthly, `YYYYMMDD` daily) |
+   | `--out` | Output directory (default `output/<slug>-<timestamp>` under skill root) |
+
+4. **Ambiguous resolve:** stdout JSON with `"status":"needs_confirmation"` and **exit code 3**. Show 2–3 `candidates`, ask once, re-run with `--title "lang:Article_title"` (underscores as in Wikipedia URLs). Do not retry resolve in a loop.
+5. **HTTP 429:** wait **3–5s**, retry; `.cache/` makes re-runs cheap—see [references/aqs.md](references/aqs.md) if needed.
+6. Read **stdout JSON** (single line, no raw series): `status`, `topic`, `articles`, `window`, `kpis`, `per_lang[]`, `spikes[]`, `caveats[]`, `paths` (`brief`, `relations_mmd`, `chart_lang_share`, `chart_trend`, `out_dir`).
+7. Open **`paths.brief`** (or the path printed). Use KPI strip, embedded Mermaid, chart images, and takeaways when composing the user-facing answer.
+8. **Reply structure**: short executive answer → paste or summarize CLI Mermaid if helpful → three bullets aligned with brief takeaways → caveats. Point to on-disk `brief.md` and charts for sharing.
 
 ## Step commands (debug / cache reuse)
 
@@ -52,14 +64,22 @@ Use when adjusting one stage without repeating network calls (`.cache/` is keyed
 | `brief`   | Fill [assets/brief-template.md](assets/brief-template.md), write Mermaid to `relations.mmd` |
 | `run`     | resolve → fetch → analyze → chart → brief; **prints only the small summary**                |
 
-All subcommands support `--help`. Diagnostics go to stderr; **stdout stays JSON** for machine-readable summaries.
+All subcommands support `--help` (see `scripts/cli.js` usage for full flag list). Diagnostics go to stderr; **stdout stays JSON** for machine-readable summaries. **`run` / `resolve` exit 3** when confirmation is required.
 
 ## Interpreting the summary
 
-- **`per_lang[]`**: `lang`, resolved `title`, `views`, `share_pct`, `growth_slope`, trust/spike notes.
-- **`kpis`**: combined views, top language, strongest growth—mirror the brief KPI strip.
-- **`caveats[]`**: include pageviews ≠ monetization; low-volume warnings; missing langlinks.
+- **`articles[]`**: resolved `lang`, `title`, `status` (`pivot`, `linked`, `missing_langlink`).
+- **`per_lang[]`**: `lang`, `views`, `share_pct`, `growth_pct`, `growth_label` (YoY-style recent vs baseline; see [references/metrics.md](references/metrics.md)).
+- **`kpis`**: `combined_views`, `top_lang`, `top_share_pct`, `top_growth_lang`, `top_growth_pct` — mirror the brief KPI strip.
+- **`spikes[]`**: flagged high buckets/days per language (check before treating momentum as structural).
+- **`caveats[]`**: pageviews ≠ monetization; low-volume warnings; missing langlinks.
 - Do not extrapolate causality, revenue, or “users will pay” from views alone.
+
+## Gotchas
+
+- **Missing langlinks are not zero interest.** Try `--title` or manual wiki search once; if still unresolved, treat as **topic not yet localized** on that wiki—a **data gap**, not proof of no demand. Do not invent views/share/growth for that lang. Example: `en:Intermittent_fasting` often has **no pl langlink**—`--langs pl,cs` may analyze **cs only** until `pl:…` is verified. Mermaid shows dashed `missing langlink` nodes; caveats list skipped langs.
+- **`--pivot` vs `--langs`:** Search runs on pivot wiki (default `en`); `--langs` only selects which editions to map via langlinks (plus pivot if listed).
+- **Rate limits:** back off on 429; cached AQS under `.cache/` speeds re-runs. See [references/aqs.md](references/aqs.md).
 
 ## Follow-up queries
 

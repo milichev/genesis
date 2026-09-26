@@ -14,13 +14,15 @@ share_pct(lang) = views(lang) / sum(views(all selected langs)) × 100
 - Report **both** share and **absolute views** so tiny languages are not overweighted by percentage alone.
 - Adding or removing a language changes everyone’s shares—note that in follow-ups.
 
-## Growth slope
+## Growth (`growth_pct`, `growth_label`)
 
-MVP definition (concrete, not a vague “growth %”):
+The CLI exposes YoY-style momentum as **`growth_pct`** plus a machine-readable **`growth_label`** on each `per_lang` row and in `kpis.top_growth_*`.
 
-- **Recent window**: last N days or months in range (CLI default aligned to granularity, e.g. last 30 days or last 3 months).
-- **Baseline window**: the **same calendar span one year earlier** (YoY).
-- **Slope / growth metric**: compare totals or averages between recent vs baseline (e.g. percent change or ratio), per language.
+Definition (concrete, not a vague “growth %”):
+
+- **Recent window**: last N days or months in range (monthly: last **3** months; daily: last **30** days).
+- **Baseline window**: the **same calendar span one year earlier** (monthly YoY) or the immediately prior N-day block (daily).
+- **`growth_pct`**: percent change `(recent − baseline) / baseline × 100`, rounded to one decimal; `null` when data is insufficient (`growth_label`: `insufficient_data`, `no_baseline`).
 
 Interpretation:
 
@@ -46,8 +48,8 @@ Always state in user-facing answers:
 
 | Brief section | Data source |
 | --- | --- |
-| Language expansion priority | `share_pct`, missing langlinks, growth slope |
-| Market momentum | YoY slope, trend chart direction, spikes |
+| Language expansion priority | `share_pct`, missing langlinks, `growth_pct` |
+| Market momentum | `growth_pct` / `growth_label`, trend chart, `spikes[]` |
 | Action item | Your synthesis: next locale to test or research—grounded in KPIs + caveats |
 
 When the user asks “can we trust this?” lean on absolute levels, window length, spike flags, and [references/aqs.md](aqs.md) data quality notes.

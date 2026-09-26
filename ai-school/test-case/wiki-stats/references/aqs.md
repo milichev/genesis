@@ -20,7 +20,7 @@ GET https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/{project}/{a
 **Resolve (MediaWiki Action API)**
 
 - Search + redirects on pivot wiki (query language or `en`).
-- `langlinks` to target languages; missing link = report gap, never guess a title.
+- `langlinks` to target languages; missing link = `missing_langlink` in resolve output, **no AQS fetch** for that lang. Use `--title pl:…` when you know the local article (CLI does not search target wikis as a fallback in MVP).
 
 Official reference: [Pageviews API](https://doc.wikimedia.org/generated-data-platform/aqs/analytics-api/reference/page-views.html).
 

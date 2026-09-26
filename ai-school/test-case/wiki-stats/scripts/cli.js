@@ -20,10 +20,13 @@ Usage:
   wiki-stats analyze --input <fetch.json>
   wiki-stats chart --input <fetch.json> --analysis <analyze.json> --out <dir>
   wiki-stats brief --resolve <resolve.json> --fetch <fetch.json> --analysis <analyze.json> --out <dir>
-  wiki-stats run --topic <q> [--langs pl,cs] [--months 24] [--pivot en] [--out output/run]
+  wiki-stats run --topic <q> [--langs pl,cs] [--months 24] [--pivot en]
+      [--title en:Foo] [--start YYYYMM|YYYYMMDD] [--end YYYYMM|YYYYMMDD] [--out dir]
 
 Global:
   --help    Show help
+
+Exit codes: 0 ok · 1 error · 2 usage · 3 needs_confirmation (resolve/run)
 `;
 }
 

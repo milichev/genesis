@@ -41,6 +41,14 @@ MVP delivers `brief.md`, two SVG charts, CLI Mermaid (`relations.mmd`), cache, a
 - Optional: OpenRouter Haiku/free tier pass documented in case study README.
 - On CLI schema changes, update evals assertions and SKILL.md command examples together.
 
+## 5. Target-lang search when langlink missing
+
+**Goal:** Reduce “cs-only” runs when `en` pivot lacks a langlink but a good article exists on the target wiki.
+
+- Optional resolve step: if langlink absent, run MediaWiki search on that **target** lang with the same topic string, score candidates, and mark `status: search_fallback` (still no silent guess on weak matches).
+- Must stay behind strict thresholds or `needs_confirmation` to avoid wrong cross-wiki pairing.
+- Until shipped, agents use `--title lang:Article` per [SKILL.md](../SKILL.md) gotchas.
+
 ## Explicit non-goals (until green)
 
 - Revenue forecasting, causal inference, paid-search correlation.
