@@ -10,6 +10,12 @@ import { writeBrief } from './brief.js';
 import { SKILL_ROOT } from './lib/cache.js';
 import { setLogSink, HttpError } from './lib/http.js';
 import { computeEstimate } from './lib/estimate.js';
+import {
+  WikiLangError,
+  parseWikiLangs,
+  assertWikiLang,
+  serializeArticle,
+} from './lib/langs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -68,11 +74,7 @@ function parseArgs(argv) {
 }
 
 function parseLangs(raw) {
-  if (!raw) return ['en'];
-  return String(raw)
-    .split(/[,;\s]+/)
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  return parseWikiLangs(raw);
 }
 
 function printJsonError(err) {
@@ -103,6 +105,7 @@ async function cmdResolve(args) {
     console.error('resolve requires --topic or --title');
     process.exit(2);
   }
+  if (args.pivot) assertWikiLang(args.pivot, '--pivot');
   const result = await resolveTopic({
     topic: args.topic || args.title,
     langs: parseLangs(args.langs || 'en'),
@@ -192,6 +195,7 @@ async function cmdRun(args) {
   }
   const langs = parseLangs(args.langs || 'en');
   const eta = computeEstimate(langs);
+  if (args.pivot) assertWikiLang(args.pivot, '--pivot');
 
   const resolveResult = await resolveTopic({
     topic: args.topic || args.title,
@@ -246,11 +250,7 @@ async function cmdRun(args) {
         error: 'No pageview series available for any language',
         topic: resolveResult.topic,
         fetch_errors: fetchBundle.errors,
-        articles: resolveResult.articles.map((a) => ({
-          lang: a.lang,
-          status: a.status,
-          url: a.url ?? null,
-        })),
+        articles: resolveResult.articles.map((a) => serializeArticle(a)),
       })
     );
     process.exit(1);
@@ -364,6 +364,10 @@ async function main() {
         process.exit(2);
     }
   } catch (err) {
+    if (err instanceof WikiLangError) {
+      printJsonError(err);
+      process.exit(2);
+    }
     console.error(String(err.stack || err));
     printJsonError(err);
     process.exit(1);

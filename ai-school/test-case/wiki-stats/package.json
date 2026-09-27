@@ -10,7 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node scripts/cli.js --help"
+    "test": "node --test test/**/*.test.js"
   },
   "license": "MIT"
 }

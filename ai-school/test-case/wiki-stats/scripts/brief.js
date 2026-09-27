@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SKILL_ROOT } from './lib/cache.js';
+import { wikiArticleUrl } from './lib/mediawiki.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_PATH = path.join(SKILL_ROOT, 'assets/brief-template.md');
@@ -89,18 +90,28 @@ function fmtNum(n) {
   return String(n);
 }
 
+function mermaidArticleLabel(lang, title, url) {
+  const plain = `${lang}:${escM(title)}`;
+  if (!url) return plain;
+  return `<a href='${url}'>${plain}</a>`;
+}
+
 /** @param {object} resolveResult @param {object} analysis */
 export function buildMermaid(resolveResult, analysis) {
   const topicLabel = resolveResult.topic;
   const pivot = resolveResult.pivot;
+  const pivotUrl =
+    resolveResult.articles.find((a) => a.lang === pivot.lang)?.url ??
+    wikiArticleUrl(pivot.lang, pivot.title);
 
-  let resolution = `flowchart LR\n  topic["${escM(topicLabel)}"] --> pivot["${pivot.lang}:${escM(pivot.title)}"]`;
+  let resolution = `flowchart LR\n  topic["${escM(topicLabel)}"] --> pivot["${mermaidArticleLabel(pivot.lang, pivot.title, pivotUrl)}"]`;
   for (const a of resolveResult.articles) {
     if (a.lang === pivot.lang) continue;
     if (!a.title) {
       resolution += `\n  pivot -.-> ${a.lang}Missing["${a.lang}: missing langlink"]`;
     } else {
-      resolution += `\n  pivot --> ${a.lang}["${a.lang}:${escM(a.title)}"]`;
+      const url = a.url ?? wikiArticleUrl(a.lang, a.title);
+      resolution += `\n  pivot --> ${a.lang}["${mermaidArticleLabel(a.lang, a.title, url)}"]`;
     }
   }
 

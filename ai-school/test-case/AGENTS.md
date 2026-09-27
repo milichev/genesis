@@ -1,41 +1,50 @@
 # test-case — agent context
 
----
-
 PES case study: build an **Agent Skill** that helps B2C founders judge topic/language demand from Wikipedia pageviews ([README.md](./README.md) if present; assignment lives with this folder).
 
 ## Deliverable
 
-Skill directory: `[wiki-stats/](wiki-stats/)` — Agent Skills layout (`SKILL.md` + runnable code). Not markdown-only instructions.
+Skill directory: [wiki-stats/](wiki-stats/) — Agent Skills layout (`SKILL.md` + runnable code). Not markdown-only instructions.
 
 ## Plans (source of truth for intent)
 
-
-| Plan      | Path                                                                                                                   | Status |
-| --------- | ---------------------------------------------------------------------------------------------------------------------- | ------ |
-| MVP       | `[.cursor/plans/1-wiki-stats_skill_mvp_f8ea83f8.plan.md](../../.cursor/plans/1-wiki-stats_skill_mvp_f8ea83f8.plan.md)` | Done   |
-| Stabilize | `[.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md](../../.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md)` | Done   |
-
-
-
+| Plan      | Path                                                                                                                 | Status     |
+| --------- | -------------------------------------------------------------------------------------------------------------------- | ---------- |
+| MVP       | [.cursor/plans/1-wiki-stats_skill_mvp_f8ea83f8.plan.md](../../.cursor/plans/1-wiki-stats_skill_mvp_f8ea83f8.plan.md) | Done       |
+| Stabilize | [.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md](../../.cursor/plans/2-wiki-stats_stabilize_51e6a3c5.plan.md) | Done       |
+| Phase 3   | [.cursor/plans/wiki-stats_phase_3_f849d237.plan.md](../../.cursor/plans/wiki-stats_phase_3_f849d237.plan.md)         | Demo-ready |
 
 ## How to run (from skill root)
 
 ```bash
 cd wiki-stats
-node scripts/cli.js run --topic "…" --langs pl,cs --months 24
+npm install
+npx wiki-stats run --topic "…" --langs pl,cs --months 24
 ```
 
 Stdout = small JSON summary only. Artifacts under `output/` (`brief.md`, SVGs, Mermaid). Never invent pageview numbers.
 
+### Demo prompts (screen-share)
+
+| Goal            | Command sketch                                                 |
+| --------------- | -------------------------------------------------------------- |
+| Fast, no alert  | `run --topic "intermittent fasting" --langs pl,cs --months 24` |
+| Show wait alert | `estimate --langs pl,cs,uk,de,fr --months 24`                  |
+| Non-Latin       | `run --topic 'нірвана' --pivot uk --langs uk,de`               |
+
+Full agent workflow and phrase bank: [wiki-stats/SKILL.md](wiki-stats/SKILL.md).
+
 ## Constraints that matter
 
-- Optimize for cheap tool-using models (Haiku-class): one-shot `run`, not long tool loops.
-- Stack: Node 20+ ESM, npm, **no TypeScript/transpile**.
+- One-shot `run` for Haiku-class models—not long tool loops.
+- Node 20+ ESM, npm, **no TypeScript/transpile**.
 - Pageviews ≠ willingness to pay; always surface caveats.
-- `missing_langlink` = data gap, not zero demand.
+- `missing_langlink` = data gap, not zero demand; use `--title` / `--pivot`—do not auto-iterate langs on empty search.
+
+## Distribution (humans)
+
+Installing the skill into Cursor (`npx skills add …`) is documented for evaluators in [wiki-stats/references/publish.md](wiki-stats/references/publish.md)—not part of the agent workflow.
 
 ## Ops
 
-* Run `npx prettier --write .` once done in the current dir.
-
+Run `npx prettier --write .` once done in the current dir.

@@ -7,6 +7,7 @@ import {
   wikiArticleUrl,
 } from './lib/mediawiki.js';
 import { HttpError } from './lib/http.js';
+import { assertWikiLang, serializeArticle } from './lib/langs.js';
 
 /** @param {string} query @param {string} title */
 function tokenScore(query, title) {
@@ -69,9 +70,19 @@ function httpErrorPayload(err) {
  *   title?: string,
  * }} input
  */
+function validateExplicitLang(input, field) {
+  const explicit = parseExplicitTitle(input);
+  if (explicit) {
+    assertWikiLang(explicit.lang, `${field} language`);
+  }
+}
+
 export async function resolveTopic(input) {
-  const langs = [...new Set(input.langs.map((l) => l.toLowerCase()))];
-  let pivotLang = (input.pivotLang || 'en').toLowerCase();
+  const langs = [...new Set(input.langs.map((l) => assertWikiLang(l, '--langs')))];
+  let pivotLang = assertWikiLang(input.pivotLang || 'en', '--pivot');
+
+  if (input.title) validateExplicitLang(input.title, '--title');
+  if (input.topic) validateExplicitLang(input.topic, '--topic');
 
   let pivotArticle;
   let topicLabel = input.topic;
@@ -200,12 +211,14 @@ export async function resolveTopic(input) {
         url: wikiArticleUrl(lang, linked),
       });
     } else {
-      articles.push({
-        lang,
-        title: null,
-        status: 'missing_langlink',
-        url: null,
-      });
+      articles.push(
+        serializeArticle({
+          lang,
+          title: null,
+          status: 'missing_langlink',
+          url: null,
+        })
+      );
     }
   }
 

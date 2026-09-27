@@ -1,3 +1,7 @@
+import { serializeArticle } from './lib/langs.js';
+
+export { serializeArticle } from './lib/langs.js';
+
 /**
  * @param {Array<{ lang: string, title: string | null, series: Array<{ timestamp: string, views: number }> | null }>} articles
  * @param {{ granularity: string }} window
@@ -203,12 +207,7 @@ export function buildSummary(
       const fetched = fetchBundle.articles.find((f) => f.lang === a.lang);
       let articleStatus = a.status;
       if (fetched?.fetch_error) articleStatus = 'fetch_error';
-      return {
-        lang: a.lang,
-        title: a.title,
-        status: articleStatus,
-        url: a.url ?? null,
-      };
+      return serializeArticle({ ...a, status: articleStatus });
     }),
     window: fetchBundle.window,
     kpis: analysis.kpis,

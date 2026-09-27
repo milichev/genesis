@@ -4,40 +4,34 @@
 
 ## Architecture
 
-- **CLI = worker, LLM = strategist.** Scripts own AQS/MediaWiki, metrics, SVG, Mermaid, `brief.md`. Agent only narrates from compact JSON + artifacts. Never dump raw time series into context.
-- **One-shot** `run` for Haiku; step subcommands (`resolve`/`fetch`/…) for debug and cache reuse.
-- **Confirm only on real ambiguity** (`needs_confirmation`, exit 3). Otherwise auto-resolve via search + langlinks.
+- **CLI = worker, LLM = strategist.** Scripts own AQS/MediaWiki, metrics, SVG, Mermaid, `brief.md`. Agent narrates from compact JSON + artifacts only.
+- **One-shot** `run` for Haiku; step cmds for debug/cache. Confirm only on `needs_confirmation` (exit 3).
+- **Severity & validation live in CLI** — agent relays `alert`, never thresholds seconds; bad langs/`--pivot` fail before HTTP.
 
-## Product cuts (3h MVP)
+## Product cuts
 
-- Ship `brief.md` **+ SVG + Mermaid**; PDF deferred (reuse brief layout later).
-- No Wikidata / category-graph topic expansion in MVP.
-- Metrics that stuck: **lang share %**, **growth = recent window vs YoY baseline**, spike flags, low-volume trust caveats.
+- MVP: `brief.md` + SVG + Mermaid; PDF/Wikidata deferred.
+- Metrics that stuck: lang share %, YoY growth slope, spikes, low-volume caveats.
+- Phase 3 cut: no `invalid_language` status, no empty-search→try-`--langs`, no `next-move` code — FSM stays in [roadmap.md](wiki-stats/references/roadmap.md).
+- `missing_langlink` = data gap; omit null `title`/`url`. Non-Latin → `--pivot` / `--title`, not magic.
 
 ## Stack
 
-- Node ESM that **ships as written** (no `tsc`/`tsx`). npm + lockfile; prefer zero deps (`fetch`).
-- pnpm was dropped for simplicity.
+- Node ESM as-written, npm, zero runtime deps (`fetch`). `node:test` for a few contract tests (no Vitest).
+- Publish/install is human SDLC ([publish.md](wiki-stats/references/publish.md)) — not agent Hard rules.
 
-## Agent Skills / “publishing”
+## Ops
 
-- [skills.sh](https://www.skills.sh/) is a **leaderboard**, not an upload portal.
-- Distribute by git/local path: `npx skills add <path|owner/repo>`. Skill needs discoverable `SKILL.md`.
-- Install telemetry drives ranking; no separate publish API.
-
-## Ops pain (→ stabilize plan)
-
-- Uncaught **HTTP 429** killed `run` with a stack trace. Need: global pacer (~350ms, 1 in-flight), honor `Retry-After`, JSON error on stdout, partial continue per lang.
-- Wikimedia: meaningful User-Agent + contact; UA-only ≈ 200 req/min; ≤3 concurrent ([rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits)).
-- Disk `.cache/` makes re-runs cheap; still pace first-hit bursts.
-- Langlinks from en often miss locales (e.g. pl for intermittent fasting) — use `--title pl:…`; don’t invent stats. Ukrainian code is `uk`, not `ua`.
+- Pacer ~350ms + `Retry-After`; stdout always JSON on failure; partial continue per lang.
+- Ukrainian wiki = `uk`, not `ua`. `--pivot en:Title` is invalid (use `--title`).
+- `estimate` alert bands follow **lang count**, not months (monthly AQS = 1 GET/lang).
 
 ## Viz
 
-- **SVG** = quantities (share bar + trend). **Mermaid** = relations (resolution map + audience priority), **CLI-generated** so models don’t freestyle wrong titles.
+- SVG = quantities. Mermaid = relations, CLI-owned; Phase 3: clickable `<a href>` on linked articles.
 
 ## Process
 
-- Grill before build: MVP cut + auto-resolve policy locked the architecture.
-- Parallel cheap agents (CLI vs docs) raced on `SKILL.md` — reconcile against real CLI flags before calling done.
-- Haiku smoke: one-shot works; document 429 backoff + “not localized” data-gap wording in `SKILL.md`.
+- Grill → lock DoD before code. Demo pitch needs **prepared prompts**, not just green tests.
+- Same agent writing tests+impl is fine for a small contract suite; fairness ≠ two-agent tax in a 1h cut.
+- Parallel agents racing on `SKILL.md` → always reconcile flags against real CLI before done.
