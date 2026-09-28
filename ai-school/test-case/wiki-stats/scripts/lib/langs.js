@@ -35,13 +35,15 @@ export function assertWikiLang(lang, context = 'language code') {
  */
 export function parseWikiLangs(raw) {
   if (!raw) return ['en'];
-  return [...new Set(
-    String(raw)
-      .split(/[,;\s]+/)
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => assertWikiLang(part, '--langs'))
-  )];
+  return [
+    ...new Set(
+      String(raw)
+        .split(/[,;\s]+/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => assertWikiLang(part, '--langs'))
+    ),
+  ];
 }
 
 /**

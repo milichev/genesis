@@ -53,19 +53,20 @@ Optional **`--log=<file>`** appends one line per paced request (or cache hit fro
 ## Rate limits & cache
 
 - Public APIs are shared: the pacer + backoff above replace ad-hoc agent retries.
-- **Cache** responses under `.cache/` (gitignored); re-runs with the same project/title/range should hit disk.
+- **Cache** under `~/.cache/wiki-stats/` (or `$XDG_CACHE_HOME/wiki-stats`, override `WIKI_STATS_CACHE`) — not inside the skill install dir (often EPERM). Re-runs with the same project/title/range should hit disk.
 - Prefer **`run` once** per user question rather than many parallel fetches from the agent.
 - Run **`wiki-stats estimate`** before long multi-lang jobs; 429 storms can exceed the cold-path estimate.
 
 ## Common failure modes
 
-| Symptom                    | Likely cause                                                                | Action                                                           |
-| -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 404 on pageviews           | Wrong project slug, wrong encoded title, or deleted page                    | Re-run `resolve`; verify `lang.wikipedia`                        |
-| Empty series               | Title mismatch, range before page existed, or granularity/date format wrong | Check start/end format; widen window                             |
-| Wildly low views           | Used `agent=spider` vs `user`, or wrong article                             | Confirm `user` agent segment                                     |
-| Resolve picks wrong topic  | Ambiguous search                                                            | Wait for `needs_confirmation`; user picks `--title`              |
-| stdout `status: "partial"` | Some langs failed AQS after retries                                         | Read `fetch_errors` and `caveats[]`; do not invent missing langs |
+| Symptom                     | Likely cause                                                                | Action                                                           |
+| --------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `http_status: 0` / Network… | Agent shell sandbox blocked outbound HTTPS                                  | Re-run with network permission (`full_network` / `all`)          |
+| 404 on pageviews            | Wrong project slug, wrong encoded title, or deleted page                    | Re-run `resolve`; verify `lang.wikipedia`                        |
+| Empty series                | Title mismatch, range before page existed, or granularity/date format wrong | Check start/end format; widen window                             |
+| Wildly low views            | Used `agent=spider` vs `user`, or wrong article                             | Confirm `user` agent segment                                     |
+| Resolve picks wrong topic   | Ambiguous search                                                            | Wait for `needs_confirmation`; user picks `--title`              |
+| stdout `status: "partial"`  | Some langs failed AQS after retries                                         | Read `fetch_errors` and `caveats[]`; do not invent missing langs |
 
 ## `project` vs language code
 

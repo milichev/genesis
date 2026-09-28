@@ -4,5 +4,5 @@ Case studies and test work from [Genesis AI School](https://eduworkspace.tech/se
 
 ## Contents
 
-- [ai-school/test-case](ai-school/test-case/README.md) — case study brief
+- [ai-school/test-case](ai-school/test-case/README.md) — case study defense (що / куди / навіщо)
   - [wiki-stats](ai-school/test-case/wiki-stats/SKILL.md) — Agent Skill (Wikipedia pageview analysis)

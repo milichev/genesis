@@ -62,7 +62,10 @@ test('buildSummary: missing_langlink article is {lang, status} only', () => {
         },
       ],
     },
-    { articles: [], window: { start: '20240101', end: '20241231', granularity: 'monthly' } },
+    {
+      articles: [],
+      window: { start: '20240101', end: '20241231', granularity: 'monthly' },
+    },
     {
       kpis: { combined_views: 0 },
       per_lang: [],
@@ -77,7 +80,7 @@ test('buildSummary: missing_langlink article is {lang, status} only', () => {
   });
 });
 
-test('buildMermaid: pivot and linked nodes contain href', () => {
+test('buildMermaid: pivot and linked nodes are plain lang:title (no href)', () => {
   const resolveResult = {
     topic: 'Nirvana',
     pivot: { lang: 'en', title: 'Nirvana_(band)' },
@@ -109,8 +112,8 @@ test('buildMermaid: pivot and linked nodes contain href', () => {
     ],
   };
   const { resolution } = buildMermaid(resolveResult, analysis);
-  assert.match(resolution, /href='https:\/\/en\.wikipedia\.org\/wiki\/Nirvana_\(band\)'/);
-  assert.match(resolution, /href='https:\/\/de\.wikipedia\.org\/wiki\/Nirvana_\(Band\)'/);
+  assert.match(resolution, /pivot\["en:Nirvana_\(band\)"\]/);
+  assert.match(resolution, /de\["de:Nirvana_\(Band\)"\]/);
   assert.match(resolution, /pl: missing langlink/);
-  assert.doesNotMatch(resolution, /plMissing.*href=/);
+  assert.doesNotMatch(resolution, /<a href=/);
 });

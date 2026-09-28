@@ -17,8 +17,8 @@
 
 ## Stack
 
-- Node ESM as-written, npm, zero runtime deps (`fetch`). `node:test` for a few contract tests (no Vitest).
-- Publish/install is human SDLC ([publish.md](wiki-stats/references/publish.md)) — not agent Hard rules.
+- Node ESM as-written, zero runtime deps (`fetch`). Invoke absolute `node $CLI` — never `npm install` / `npx` from wrong cwd. HTTP cache → `~/.cache/wiki-stats` (skill dir under `~/.agents` is often EPERM). `node:test` for contract tests.
+- Skills install (`npx skills add`) is human SDLC ([README.md](README.md) § Development) — not agent Hard rules.
 
 ## Ops
 
@@ -28,7 +28,7 @@
 
 ## Viz
 
-- SVG = quantities. Mermaid = relations, CLI-owned; Phase 3: clickable `<a href>` on linked articles.
+- SVG = quantities. Mermaid = relations, CLI-owned; labels are plain `lang:title` — Cursor Mermaid preview does not render `<a href>` (shows raw HTML).
 
 ## Process
 

@@ -1,6 +1,6 @@
 ---
 name: wiki-stats demo prep
-overview: "Screen-share demo prep: install skill, five prompts (A–E), ~10–12 min script, pre-warm, and backup path if the agent stalls."
+overview: 'Screen-share demo prep: install skill, five prompts (A–E), ~10–12 min script, pre-warm, and backup path if the agent stalls.'
 todos:
   - id: sync-demo-md
     content: Mirror install/publish + checklist from this plan into DEMO.md when executing
@@ -42,7 +42,7 @@ npx skills add ~/Dev/genesis/ai-school/test-case/wiki-stats -g -a cursor -y
 ```bash
 npx skills add <owner>/<repo> -g -a cursor -y
 # monorepo:
-npx skills add https://github.com/milichev/genesis/tree/main/ai-school/test-case/wiki-stats -g -a cursor -y
+npx skills add https://github.com/<owner>/<repo>/tree/main/ai-school/test-case/wiki-stats -g -a cursor -y
 ```
 
 **Two installs, don’t conflate:** `skills add` = agent discovers skill; `npm install` = CLI deps.
@@ -75,7 +75,6 @@ Pre-warm `estimate`/`run` off-camera. Prefer opening a **known** `output/…/bri
 
 ## Anything missing? (checklist)
 
-
 | Gap                    | Why                                             | Action                                                            |
 | ---------------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
 | **Backup path**        | Agent/Haiku may stall or skip `estimate`        | Keep terminal ready; run CLI yourself and narrate from `brief.md` |
@@ -86,6 +85,5 @@ Pre-warm `estimate`/`run` off-camera. Prefer opening a **known** `output/…/bri
 | **Output paths**       | Hunting `output/` mid-pitch burns time          | Note 1–2 paths after pre-warm                                     |
 | **Optional 10s aside** | `ua` / bad `--pivot`                            | Validation story — skip if timeboxed                              |
 | **Public GitHub**      | Not required for local demo                     | Only if evaluator must `skills add` from URL                      |
-
 
 Not missing for pitch: PDF, FSM code, Wikidata — those stay roadmap.

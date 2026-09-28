@@ -1,6 +1,6 @@
 ---
 name: wiki-stats stabilize
-overview: "Stabilize wiki-stats: restore-confirmed codebase, harden Wikimedia HTTP (pacer + soft failures), add estimate/eta UX for agents, --log, articles[*].url, and publish/install docs + local e2e."
+overview: 'Stabilize wiki-stats: restore-confirmed codebase, harden Wikimedia HTTP (pacer + soft failures), add estimate/eta UX for agents, --log, articles[*].url, and publish/install docs + local e2e.'
 todos:
   - id: http-pacer
     content: Global pacer + Retry-After + soft HttpError in http.js; partial continue in resolve/fetch

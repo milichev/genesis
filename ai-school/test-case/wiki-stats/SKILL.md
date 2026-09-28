@@ -1,76 +1,67 @@
 ---
 name: wiki-stats
 description: Evaluates B2C market demand and localization priorities by analyzing cross-language Wikipedia pageviews (AQS), computing YoY growth slopes and demand share, and outputting SVG charts, Mermaid maps, brief.md, and stdout JSON summary. Ideal for validating new app/course topics and cross-language audience interest (pageviews indicate curiosity, not willingness to pay).
-compatibility: Node 20+, npm install in skill root, outbound network (MediaWiki + Wikimedia Analytics APIs)
+compatibility: Node 20+, zero npm deps, outbound network (MediaWiki + Wikimedia Analytics APIs)
 disable-model-invocation: true
 ---
 
 # wiki-stats
 
-CLI does fetch, math, charts, and briefs. You parse the user question, run the CLI once, then narrate from the **summary JSON** and `brief.md`—never reimplement analysis in chat.
+CLI owns fetch, math, charts, brief. Parse intent → run CLI → narrate from **stdout JSON** + `brief.md` only.
+
+## Invoke
+
+Set once, then use **`$CLI` on every call** (absolute path — do not rely on cwd / `npx` / `npm`):
+
+```bash
+CLI="$HOME/.agents/skills/wiki-stats/scripts/cli.js"   # else: …/scripts/cli.js next to this SKILL.md
+OUT="<workspace>/wiki-stats-output"                    # no workspace → "$HOME/Documents/wiki-stats-output"
+mkdir -p "$OUT"
+test -f "$CLI" || { echo "CLI missing: $CLI"; exit 1; }
+
+node "$CLI" estimate --langs uk,de --months 24
+node "$CLI" run --topic "U2" --langs uk,de --months 24 --out "$OUT"
+```
+
+Always `--out "$OUT"` on `run`. No `npm install`. No `npx` (wrong cwd → registry 404).
+
+**Sandbox / network:** `estimate` is offline. Before **`run`**, tell the user to approve the shell command **without Sandbox** (e.g. Cursor **Allowlist**, not “with Sandbox” / not “Run Everything”). CLI only does read-only HTTPS to Wikipedia/Wikimedia + writes under `$OUT` / `~/.cache/wiki-stats` — safe for this skill. Sandboxed runs usually fail with `http_status: 0` / `Network unreachable`; then ask once to re-approve without sandbox and retry the same command (do not change the topic).
 
 ## Hard rules
 
-- **Never invent pageview numbers, shares, or growth rates.** Only cite values from CLI stdout or `brief.md`.
-- **Never paste raw time-series** (daily/monthly arrays) into the reply. The summary JSON is the only numeric payload you need.
-- **Prefer CLI Mermaid** from `brief.md` or `paths.relations_mmd` over drawing your own graphs (wrong titles and missing langlinks are common when freestyling).
-- **Confirm only when the CLI returns** `needs_confirmation`. Ask once, re-run with `--title` or an explicit `lang:Title`; do not loop on resolve.
-- **Always surface** Assumptions & limitations from summary `caveats[]` and the brief footer.
-- **API / encoding / rate-limit errors** → [references/aqs.md](references/aqs.md). Metric definitions → [references/metrics.md](references/metrics.md).
+- Cite numbers only from CLI stdout / `brief.md`. No invented stats; no raw time-series in chat.
+- Prefer CLI Mermaid (`brief.md` / `paths.relations_mmd`).
+- Confirm **only** on `needs_confirmation` (exit 3): candidates once → `--title lang:Article`. No resolve loops.
+- Surface `caveats[]` / brief limitations (pageviews ≠ willingness to pay).
+- **Topic unclear → ask; do not `run` until unambiguous.**
+- Errors → [references/aqs.md](references/aqs.md). Metrics → [references/metrics.md](references/metrics.md).
 
-## Workflow checklist
+## Workflow
 
-1. **Parse** topic(s), target languages (ISO wiki codes: `pl`, `cs`, `uk`, …), and date window. Default: last **24 months** unless the user says otherwise. Ukrainian Wikipedia is **`uk`, not `ua`** (invalid codes fail before HTTP).
-2. **Install once** (skill root): `npm install`.
-3. **Estimate** (no network; same `--langs` / `--months` as the planned `run`):
-
-   ```bash
-   npx wiki-stats estimate --langs pl,cs,uk --months 24
-   ```
-
-   Stdout JSON: `estimation` (seconds) and optional `alert`. **`months` does not change the alert band**—only language count does. If `alert` is present, tell the user once (you may include `estimation`):
-
-   | `alert`    | Phrase (UA)                                                         |
-   | ---------- | ------------------------------------------------------------------- |
-   | `Brief`    | трошки почекати                                                     |
-   | `Moderate` | доведеться чекати                                                   |
-   | `Extended` | довго чекати                                                        |
-   | `Infinite` | безкінечність, скоріш за все, не дочекаємось — **ask before** `run` |
-
-   Set tool wait **≥** `estimation + max(30, estimation)` (or 2× `estimation`). No busy-loop `sleep` in chat.
-4. **Run** (one shot):
+1. **Parse** topic, langs (**default `uk,en`**; **`uk` not `ua`**), window (default **24** months).
+2. **`estimate`** (alert = **lang count**, not months):
 
    ```bash
-   npx wiki-stats run --topic "intermittent fasting" --langs pl,cs --months 24
+   node "$CLI" estimate --langs uk,en --months 24
    ```
 
-   Use `--pivot` when the topic is non-Latin or should be searched on a specific wiki (default pivot `en`). Use `--title lang:Article_title` to skip search. `--start` / `--end` override the rolling window. `--out` sets the artifact directory. See `npx wiki-stats --help` for the full flag list.
-5. **`needs_confirmation`** (exit 3): show 2–3 `candidates`, ask once, re-run with `--title "lang:Article_title"`. Do not retry resolve in a loop.
-6. Read **stdout JSON**: `status`, `topic`, `articles`, `window`, `kpis`, `per_lang[]`, `spikes[]`, `caveats[]`, `paths` (`brief`, `relations_mmd`, charts, `out_dir`). On errors, stdout is still one JSON object—see [references/aqs.md](references/aqs.md).
-7. Open `paths.brief`. Reply: short executive answer → CLI Mermaid if helpful → three bullets from takeaways → caveats. Point to on-disk artifacts for sharing.
+   `estimation` = expected wall-clock for paced public Wikimedia API calls — not report length. Phrase `alert` once: Brief→«трошки почекати», Moderate→«доведеться чекати», Extended→«довго чекати», Infinite→«не дочекаємось» + **ask before** `run`.
+   **Do not sleep or pad waits.** Let `run` block until it finishes (~`estimation` seconds). No extra +30s / 2× padding in chat.
 
-Subcommands (`resolve`, `fetch`, `analyze`, `chart`, `brief`) exist for cache reuse; default path is **`run` only**. Stdout stays JSON; diagnostics on stderr.
+3. **`run`** once (clear topic; always `--out`):
 
-## Interpreting the summary
+   ```bash
+   node "$CLI" run --topic "…" --langs uk,en --months 24 --out "$OUT"
+   ```
 
-- `articles[]`: `lang`, `title`, `status` (`pivot`, `linked`, `missing_langlink`, …), `url` when linked (omitted when not).
-- `per_lang[]`: `views`, `share_pct`, `growth_pct`, `growth_label` — see [references/metrics.md](references/metrics.md).
-- `kpis`, `spikes[]`, `caveats[]`: mirror the brief; pageviews ≠ monetization.
+   Non-Latin → `--pivot <lang>`. Known article → `--title lang:Article`.
 
-## Gotchas (demo-ready prompts)
+4. Reply from summary + `paths.brief`: answer → Mermaid if useful → 3 takeaways → caveats → artifact paths.
 
-Copy these patterns when testing or demoing:
+Default: **`run` only**. Stdout = JSON.
 
-| Scenario        | Example |
-| --------------- | ------- |
-| Small (no alert) | `run --topic "intermittent fasting" --langs pl,cs --months 24` |
-| Alert `Brief`   | `estimate --langs pl,cs,uk,de,fr --months 24` (≥5 langs) |
-| Non-Latin topic | `run --topic 'нірвана' --pivot uk --langs uk,de` — do not rely on bare EN pivot for Cyrillic |
+## Gotchas
 
-- **Missing langlinks are not zero interest.** Use `--title` or one manual wiki check; else treat as **topic not yet localized**—a data gap, not proof of no demand. Example: `en:Intermittent_fasting` often has no `pl` langlink; `--langs pl,cs` may analyze **cs only** until `pl:…` is verified.
-- **`--pivot` vs `--langs`:** search runs on pivot wiki; `--langs` selects editions to map via langlinks (plus pivot if listed).
-- **Rate limits:** run `estimate` before long jobs; see [references/aqs.md](references/aqs.md).
-
-## Follow-up
-
-Re-run `run` with new langs or dates; `.cache/` speeds repeats. Roadmap (PDF, Wikidata, evals, **next-move FSM**): [references/roadmap.md](references/roadmap.md).
+- `missing_langlink` ≠ zero demand — don’t invent that lang’s stats.
+- `--pivot` = search wiki; `--langs` = langlinks. Never `--pivot lang:Title`.
+- ≥5 langs → expect `alert: Brief`.

@@ -1,3 +1,5 @@
+> **Pre-inception brainstorm only.** Early feasibility sketch (Python/PDF, 3h sprint framing). **Not** the shipped MVP — that is Node ESM + `brief.md`/SVG/Mermaid via `wiki-stats`. See [README.md](README.md).
+
 ## Summary
 
 Building a B2C market intelligence skill powered by Wikipedia pageview data requires balancing deep analytical capabilities with strict execution constraints: optimizing for fast, lightweight LLMs (like Claude Haiku or free OpenRouter models) and delivering a working, reproducible pipeline within a 3-hour sprint.

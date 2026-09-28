@@ -218,24 +218,29 @@ export async function fetchJson(url, opts = {}) {
         throw err;
       }
       const durationMs = Date.now() - t0;
+      const raw = String(err.message || err);
       await logHttpLine({
         method,
         url,
         status: 'fail',
-        error: String(err.message || err).slice(0, 120),
+        error: raw.slice(0, 120),
         durationMs,
         waitMs,
         cache: 'miss',
       });
-      if (attempt < attempts - 1) {
-        await sleep(BASE_BACKOFF_MS * 2 ** attempt);
+      // DNS/TLS/sandbox: one quick retry only — more backoff won't open the network
+      if (attempt < 1) {
+        await sleep(BASE_BACKOFF_MS);
         continue;
       }
-      throw new HttpError(String(err.message || err), {
-        status: 0,
-        retryable: false,
-        url,
-      });
+      throw new HttpError(
+        `Network unreachable (${raw}). Need outbound HTTPS to wikipedia.org / wikimedia.org — re-run the shell tool with network permission (full_network or all), not sandboxed offline.`,
+        {
+          status: 0,
+          retryable: false,
+          url,
+        }
+      );
     }
   }
 

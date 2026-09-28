@@ -1,11 +1,24 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const SKILL_ROOT = path.resolve(__dirname, '../..');
-export const CACHE_DIR = path.join(SKILL_ROOT, '.cache');
+
+/** Writable cache — never under ~/.agents/skills (often EPERM). */
+export function resolveCacheDir() {
+  if (process.env.WIKI_STATS_CACHE) {
+    return path.resolve(process.env.WIKI_STATS_CACHE);
+  }
+  if (process.env.XDG_CACHE_HOME) {
+    return path.join(process.env.XDG_CACHE_HOME, 'wiki-stats');
+  }
+  return path.join(os.homedir(), '.cache', 'wiki-stats');
+}
+
+export const CACHE_DIR = resolveCacheDir();
 
 export function cacheKey(parts) {
   const raw = parts.join('|');
@@ -13,7 +26,12 @@ export function cacheKey(parts) {
 }
 
 export async function ensureCacheDir() {
-  await fs.mkdir(CACHE_DIR, { recursive: true });
+  try {
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -41,6 +59,10 @@ export async function readCache(filePath) {
  * @param {unknown} data
  */
 export async function writeCache(filePath, data) {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(data, null, 0), 'utf8');
+  try {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(data, null, 0), 'utf8');
+  } catch {
+    // Cache is best-effort; skill install dirs / sandboxes may deny writes.
+  }
 }

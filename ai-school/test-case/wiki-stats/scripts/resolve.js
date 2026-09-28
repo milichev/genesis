@@ -78,7 +78,9 @@ function validateExplicitLang(input, field) {
 }
 
 export async function resolveTopic(input) {
-  const langs = [...new Set(input.langs.map((l) => assertWikiLang(l, '--langs')))];
+  const langs = [
+    ...new Set(input.langs.map((l) => assertWikiLang(l, '--langs'))),
+  ];
   let pivotLang = assertWikiLang(input.pivotLang || 'en', '--pivot');
 
   if (input.title) validateExplicitLang(input.title, '--title');
